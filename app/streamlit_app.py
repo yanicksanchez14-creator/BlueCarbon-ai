@@ -1,4 +1,4 @@
-"""BlueCarbon — coastal blue carbon mapping from Sentinel-2.
+"""BlueCarbon-AI: coastal blue carbon mapping from Sentinel-2.
 
 Runs with zero credentials on the bundled demo sites. With Earth Engine credentials in
 Streamlit secrets (GEE_SERVICE_ACCOUNT), the Analyze tab maps any coastline on demand.
@@ -49,7 +49,7 @@ LOGO = """<svg width="34" height="34" viewBox="0 0 40 40" xmlns="http://www.w3.o
 <path d="M7 33c2.2 0 2.2-1.6 4.4-1.6s2.2 1.6 4.4 1.6 2.2-1.6 4.4-1.6 2.2 1.6 4.4 1.6 2.2-1.6 4.4-1.6 2.2 1.6 3.8 1.6"
  fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="2" stroke-linecap="round"/></svg>"""
 
-st.set_page_config(page_title="BlueCarbon · Coastal carbon mapping", page_icon=":material/eco:", layout="wide",
+st.set_page_config(page_title="BlueCarbon-AI", page_icon=str(ROOT / "app" / "assets" / "favicon.png"), layout="wide",
                    initial_sidebar_state="collapsed")
 
 # ----------------------------------------------------------------------------- design system
@@ -75,16 +75,39 @@ h1,h2,h3,h4{color:var(--ink); letter-spacing:-.015em;}
   border-bottom:1px solid var(--line); margin-bottom:1.6rem;}
 .bc-brand{display:flex; align-items:center; gap:.7rem;}
 .bc-word{font-weight:700; font-size:1.18rem; color:var(--ink); letter-spacing:-.02em;}
-.bc-word span{color:var(--accent);}
+.bc-word span{color:var(--accent); font-weight:600;}
+.bc-i{display:inline-flex; align-items:center; position:relative; color:#8a9aa3; margin-left:.3rem;
+  cursor:help; vertical-align:-1px; outline:none;}
+.bc-i:hover, .bc-i:focus{color:var(--brand);}
+.bc-i::after{content:attr(data-tip); position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%);
+  width:max-content; max-width:280px; background:#0b1f2a; color:#f2f6f7; font-size:.78rem; font-weight:400;
+  line-height:1.45; padding:.55rem .7rem; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,.18);
+  opacity:0; pointer-events:none; transition:opacity .12s; z-index:1000; white-space:normal; text-transform:none;
+  letter-spacing:normal; text-align:left;}
+.bc-i:hover::after, .bc-i:focus::after{opacity:1;}
+.bc-glance .bc-i{color:#9fe3d6;}
+.bc-how{display:flex; flex-direction:column; gap:.6rem;}
+.bc-howstep{display:flex; gap:.8rem; align-items:flex-start; background:var(--card); border:1px solid var(--line);
+  border-radius:12px; padding:.75rem .9rem;}
+.bc-howstep .num{flex:none; width:24px; height:24px; border-radius:50%; background:var(--accent-soft); color:var(--brand);
+  font-weight:700; font-size:.8rem; display:flex; align-items:center; justify-content:center;}
+.bc-howstep b{display:block; font-size:.92rem; color:var(--ink);}
+.bc-howstep small{display:block; color:var(--muted); font-size:.8rem; line-height:1.45; margin-top:.1rem;}
+.bc-glance-h{font-size:.8rem; font-weight:600; color:#9fe3d6; letter-spacing:.02em;}
+.bc-relhead{font-size:.74rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em;}
+.bc-sumrow{display:grid; grid-template-columns:190px 1fr; gap:1rem; padding:.7rem 0; border-bottom:1px solid var(--line-2);}
+.bc-sumrow:last-child{border-bottom:none;}
+.bc-sumrow .k{font-weight:600; font-size:.9rem; color:var(--ink);}
+.bc-sumrow .v{font-size:.94rem; color:var(--ink-2); line-height:1.6;}
 .bc-tag{font-size:.72rem; font-weight:600; color:var(--brand); background:var(--accent-soft);
   border:1px solid #cfe9e5; padding:2px 8px; border-radius:999px; margin-left:.35rem;}
 .bc-links a{color:var(--ink-2); text-decoration:none; font-size:.88rem; font-weight:500; margin-left:1.4rem;}
 .bc-links a:hover{color:var(--brand);}
 
 /* hero */
-.bc-hero{display:grid; grid-template-columns:1.35fr 1fr; gap:2rem; align-items:end; margin-bottom:1.6rem;}
+.bc-hero{display:grid; grid-template-columns:1.3fr 1fr; gap:2.4rem; align-items:center; margin-bottom:1.8rem;}
 .bc-eyebrow{font-size:.74rem; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--accent);}
-.bc-hero h1{font-size:2.35rem; line-height:1.12; font-weight:700; margin:.35rem 0 .6rem; padding:0;}
+.bc-hero h1{font-size:2.2rem; line-height:1.15; font-weight:700; margin:0 0 .8rem; padding:0;}
 .bc-hero p{color:var(--ink-2); font-size:1.02rem; line-height:1.6; margin:0; max-width:620px;}
 .bc-facts{display:flex; gap:.6rem; flex-wrap:wrap; justify-content:flex-end;}
 .bc-fact{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:.6rem .85rem; min-width:118px;}
@@ -102,7 +125,7 @@ div[data-baseweb="tab-border"]{display:none;}
 /* cards */
 .bc-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:1.1rem 1.2rem;}
 .bc-kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:.9rem; margin:.4rem 0 1.1rem;}
-.bc-kpi .l{font-size:.78rem; color:var(--muted); font-weight:500;}
+.bc-kpi .l{font-size:.86rem; color:var(--ink-2); font-weight:600;}
 .bc-kpi .v{font-size:1.65rem; font-weight:700; color:var(--ink); margin:.25rem 0 .1rem; letter-spacing:-.02em;}
 .bc-kpi .v small{font-size:.85rem; font-weight:500; color:var(--muted); margin-left:.25rem;}
 .bc-kpi .s{font-size:.76rem; color:var(--muted);}
@@ -164,6 +187,41 @@ div[data-testid="stExpander"]{border:1px solid var(--line); border-radius:var(--
   .bc-kpis{grid-template-columns:repeat(2,1fr);} .bc-steps{grid-template-columns:1fr 1fr;}
   .block-container{padding:1rem 1rem 2rem;}
 }
+
+.bc-glance{background:linear-gradient(135deg,#0e5a67 0%,#083744 100%); color:#fff; border-radius:var(--radius);
+  padding:1.3rem 1.5rem; margin:.3rem 0 1.2rem;}
+.bc-glance .bc-eyebrow{color:#9fe3d6;}
+.bc-glance p{margin:.4rem 0 0; font-size:1.08rem; line-height:1.65; color:#e8f3f4;}
+.bc-glance b{color:#fff;}
+.bc-grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:.9rem;}
+.bc-hab .name{display:flex; align-items:center; gap:.5rem; font-weight:600; font-size:.95rem;}
+.bc-hab .sw, .bc-relrow .sw{width:11px; height:11px; border-radius:3px; display:inline-block;}
+.bc-hab .big{font-size:1.9rem; font-weight:700; margin:.55rem 0 0; letter-spacing:-.02em;}
+.bc-hab .big small{font-size:.9rem; font-weight:500; color:var(--muted);}
+.bc-hab .big.muted{color:#b3bec4; font-size:1.35rem;}
+.bc-hab .sub{font-size:.8rem; color:var(--muted); margin-bottom:.6rem;}
+.bc-hab .kv{display:flex; justify-content:space-between; font-size:.86rem; padding:.35rem 0; border-top:1px solid var(--line-2);}
+.bc-hab .kv span{color:var(--muted);} .bc-hab .kv b{font-variant-numeric:tabular-nums;}
+.bc-hab .desc{font-size:.8rem; color:var(--ink-2); line-height:1.5; margin-top:.6rem;}
+.bc-kpi .what{font-size:.82rem; color:var(--ink-2); line-height:1.5; margin-top:.6rem; padding-top:.6rem;
+  border-top:1px solid var(--line-2);}
+.bc-maplegend{display:flex; flex-wrap:wrap; gap:.4rem 1.1rem; margin-top:.55rem; font-size:.84rem; color:var(--ink-2);}
+.bc-maplegend span{display:inline-flex; align-items:center;}
+.bc-maplegend i{width:11px; height:11px; border-radius:3px; margin-right:.4rem; display:inline-block;}
+.bc-rels{display:flex; flex-direction:column;}
+.bc-relrow{display:grid; grid-template-columns:14px 1fr auto 72px; align-items:center; gap:.6rem; font-size:.88rem;
+  padding:.45rem 0; border-bottom:1px solid var(--line-2);}
+.bc-relrow .sc{text-align:right; font-variant-numeric:tabular-nums; color:var(--muted); font-size:.8rem;}
+.bc-rel{font-size:.72rem; font-weight:600; padding:2px 9px; border-radius:999px; border:1px solid;}
+.bc-rel-hi{background:#e8f6ee; color:#12683b; border-color:#bfe3cc;}
+.bc-rel-md{background:#fff6e8; color:#8a5a00; border-color:#f3d9a8;}
+.bc-rel-lo{background:#fdecec; color:#9b2c2c; border-color:#f3c4c4;}
+.bc-rel-na{background:#f1f4f5; color:#6a7a84; border-color:#e0e6e9;}
+.bc-summary ul{margin:.5rem 0 0; padding-left:1.1rem;}
+.bc-summary li{font-size:.95rem; line-height:1.65; color:var(--ink); margin:.2rem 0;}
+.bc-h2{font-size:1.15rem; font-weight:700; margin:2rem 0 .25rem; color:var(--ink);}
+.bc-h2sub{font-size:.88rem; color:var(--muted); margin:0 0 .8rem;}
+@media (max-width: 900px){ .bc-grid3{grid-template-columns:1fr;} .bc-sumrow{grid-template-columns:1fr; gap:.2rem;} }
 </style>
 """,
     unsafe_allow_html=True,
@@ -172,17 +230,40 @@ div[data-testid="stExpander"]{border:1px solid var(--line); border-radius:var(--
 
 # ----------------------------------------------------------------------------- helpers
 def fmt(x: float | None, digits: int = 0) -> str:
+    """Plain numbers with thousands separators (no k/M abbreviations)."""
     if x is None:
         return "–"
     a = abs(x)
-    if a >= 1e6:
-        return f"{x / 1e6:,.2f}M"
-    if a >= 1e4:
-        return f"{x / 1e3:,.1f}k"
+    if a >= 1000:
+        return f"{round(x, -2 if a >= 10000 else -1):,.0f}"
     if a >= 100:
         return f"{x:,.0f}"
     return f"{x:,.{max(digits, 1)}f}"
 
+
+def tip(text: str) -> str:
+    """Small (i) icon that shows an explanation on hover or tap."""
+    t = text.replace('"', "&quot;")
+    return (f'<span class="bc-i" tabindex="0" data-tip="{t}"><svg viewBox="0 0 16 16" width="13" height="13" '
+            'aria-hidden="true"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.4"/>'
+            '<circle cx="8" cy="4.9" r=".95" fill="currentColor"/><path d="M8 7.2v4.6" stroke="currentColor" '
+            'stroke-width="1.5" stroke-linecap="round"/></svg></span>')
+
+
+T_HA = "A hectare is 10,000 m², about 2.5 acres or one and a half soccer fields."
+T_CO2 = ("Tonnes of carbon dioxide (CO₂). Scientists convert the carbon stored in soil and plants into the amount of "
+         "CO₂ it would form if released, so it can be compared with emissions.")
+T_RANGE = ("We are 90% confident the true value lies in this range. It reflects uncertainty in both the mapped area and "
+           "the published carbon values.")
+T_TIER1 = ("IPCC Tier 1 = the default carbon values per hectare published by the UN climate science body (IPCC) for "
+           "each habitat type. Good for a first estimate; real projects measure their own site.")
+T_ADJ = ("Maps are never perfect. We correct each area using how often the model was right or wrong on test areas "
+         "(a standard method from Olofsson et al., 2014).")
+T_SCORE = ("How closely the model's map overlapped with trusted reference maps, on areas it never saw during training. "
+           "1.00 = perfect match, 0 = no match.")
+T_S2 = "Sentinel-2 is a pair of European Space Agency satellites that photograph every coastline on Earth every 5 days, free."
+T_PILOT = ("An early version trained on a single bay (Mission Bay). It maps water and land well but has seen too little "
+           "marsh and seagrass to find them reliably. The full model trains on 11 coastal sites worldwide.")
 
 def png_uri(path: Path) -> str:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
@@ -240,41 +321,6 @@ def range_bar(p05: float, mean: float, p95: float) -> str:
             f'<em style="left:calc({m_pct:.1f}% - 1px)"></em></div>')
 
 
-def kpi_cards(report: dict) -> str:
-    cb = report["carbon"]
-    s, q = cb["total_stock_tCO2e"], cb["total_sequestration_tCO2e_per_yr"]
-    a = best_areas(report)
-    bc_area = sum(a[k] for k in BLUE_CARBON_KEYS)
-    v = cb["indicative_annual_value_usd"]
-    parts = [
-        ("Blue carbon habitat", fmt(bc_area, 1), "ha",
-         " · ".join(f"{CLS[k].name} {fmt(a[k], 1)}" for k in BLUE_CARBON_KEYS if a[k] > 0.05) or "none detected", ""),
-        ("Carbon stock", fmt(s["mean"]), "tCO₂e", f"90% interval {fmt(s['p05'])} – {fmt(s['p95'])}",
-         range_bar(s["p05"], s["mean"], s["p95"])),
-        ("Annual sequestration", fmt(q["mean"], 1), "tCO₂e / yr", f"90% interval {fmt(q['p05'], 1)} – {fmt(q['p95'], 1)}",
-         range_bar(q["p05"], q["mean"], q["p95"])),
-        ("Indicative credit value", "$" + fmt(v["mid"]), "/ yr", f"${fmt(v['low'])} – ${fmt(v['high'])} at $15–40 per tCO₂e", ""),
-    ]
-    cards = "".join(
-        f'<div class="bc-card bc-kpi"><div class="l">{label}</div><div class="v">{val}<small>{u}</small></div>{bar}'
-        f'<div class="s">{sub}</div></div>' for label, val, u, sub, bar in parts)
-    return f'<div class="bc-kpis">{cards}</div>'
-
-
-def legend_html(report: dict) -> str:
-    a = best_areas(report)
-    tot = sum(a.values()) or 1
-    rows = []
-    for c in CLASSES:
-        tag = '<span class="bc">blue carbon</span>' if c.blue_carbon else ""
-        rows.append(f'<div class="row"><span class="sw" style="background:{c.color}"></span>'
-                    f'<span class="n">{c.name}{tag}</span><span class="a">{fmt(a[c.key], 1)} ha</span>'
-                    f'<span class="p">{100 * a[c.key] / tot:.1f}%</span><span></span>'
-                    f'<span class="bar"><i style="width:{max(100 * a[c.key] / tot, 0.4 if a[c.key] > 0 else 0):.1f}%;'
-                    f'background:{c.color}"></i></span></div>')
-    return f'<div class="bc-legend">{"".join(rows)}</div>'
-
-
 def carbon_table(report: dict) -> str:
     rows = []
     for k, v in report["carbon"]["classes"].items():
@@ -285,9 +331,9 @@ def carbon_table(report: dict) -> str:
                     f'<td class="num">{fmt(s["p05"])} – {fmt(s["p95"])}</td><td class="num">{fmt(q["mean"], 1)}</td></tr>')
     if not rows:
         rows = ['<tr><td colspan="5">No blue carbon habitat detected.</td></tr>']
-    return ('<table class="bc-table"><thead><tr><th>Habitat</th><th style="text-align:right">Area (ha)</th>'
-            '<th style="text-align:right">Stock (tCO₂e)</th><th style="text-align:right">90% interval</th>'
-            '<th style="text-align:right">Sequestration (tCO₂e/yr)</th></tr></thead><tbody>'
+    return ('<table class="bc-table"><thead><tr><th>Habitat</th><th style="text-align:right">Area (hectares)</th>'
+            '<th style="text-align:right">Carbon stored (t CO₂)</th><th style="text-align:right">Likely range</th>'
+            '<th style="text-align:right">Absorbed per year (t CO₂)</th></tr></thead><tbody>'
             + "".join(rows) + "</tbody></table>")
 
 
@@ -295,11 +341,11 @@ def model_panel(model: dict | None) -> None:
     if not model:
         return
     t = model.get("test") or {}
-    badge = ('<span class="bc-badge">● Pilot model · single-site training data</span>' if model.get("pilot")
+    badge = (f'<span class="bc-badge">Pilot model · trained on one bay{tip(T_PILOT)}</span>' if model.get("pilot")
              else '<span class="bc-badge" style="background:#e6f5f3;color:#0e5a67;border-color:#cfe9e5">'
-                  '● Multi-site model</span>')
+                  'Multi-site model</span>')
     st.markdown(f'{badge}<div style="margin:.7rem 0 .2rem;font-weight:600">{model.get("name", "model")}</div>'
-                f'<div class="bc-note">{model["arch"]} · {model["encoder"]} encoder · 14 spectral inputs</div>',
+                f'<div class="bc-note">{model["arch"]} neural network · {model["encoder"]} encoder · 14 image bands</div>',
                 unsafe_allow_html=True)
     if t:
         rows = "".join(
@@ -307,10 +353,10 @@ def model_panel(model: dict | None) -> None:
             f'<td class="num">{t["support_px"][k]:,}</td></tr>' for k, v in t["iou"].items() if v is not None)
         st.markdown(
             f'<div style="display:flex;gap:1.6rem;margin:.9rem 0">'
-            f'<div><div class="bc-note">mIoU</div><div style="font-size:1.35rem;font-weight:700">{t["mIoU"]:.2f}</div></div>'
-            f'<div><div class="bc-note">Macro F1</div><div style="font-size:1.35rem;font-weight:700">{t["macro_f1"]:.2f}</div></div>'
+            f'<div><div class="bc-note">Mean IoU (overlap)</div><div style="font-size:1.35rem;font-weight:700">{t["mIoU"]:.2f}</div></div>'
+            f'<div><div class="bc-note">Mean F1 score</div><div style="font-size:1.35rem;font-weight:700">{t["macro_f1"]:.2f}</div></div>'
             f'<div><div class="bc-note">Cohen\'s κ</div><div style="font-size:1.35rem;font-weight:700">{t["kappa"]:.2f}</div></div></div>'
-            f'<table class="bc-table"><thead><tr><th>Class</th><th style="text-align:right">IoU</th>'
+            f'<table class="bc-table"><thead><tr><th>Habitat</th><th style="text-align:right">IoU</th>'
             f'<th style="text-align:right">F1</th><th style="text-align:right">Test pixels</th></tr></thead>'
             f'<tbody>{rows}</tbody></table>', unsafe_allow_html=True)
     notes = " ".join(x for x in [model.get("evaluation") and f"Evaluated with {model['evaluation']}.",
@@ -319,47 +365,256 @@ def model_panel(model: dict | None) -> None:
         st.markdown(f'<div class="bc-note" style="margin-top:.7rem">{notes}</div>', unsafe_allow_html=True)
 
 
+HABITAT_INFO = {
+    "mangrove": "Salt-tolerant trees that grow along tropical coasts. Per hectare, the most carbon-rich ecosystem on Earth.",
+    "saltmarsh": "Grassy wetlands flooded by the tides. Their muddy soils keep burying carbon for centuries.",
+    "seagrass": "Underwater meadows in shallow, clear water. Their roots trap carbon-rich sediment on the seabed.",
+}
+CAR_TCO2_PER_YR = 4.6  # US EPA: typical passenger vehicle, tonnes CO2 per year
+T_CARS = "Based on the US EPA figure of about 4.6 tonnes of CO₂ per typical passenger car per year."
+
+
+def car_equiv(tco2: float) -> str:
+    n = tco2 / CAR_TCO2_PER_YR
+    return f"{n:,.0f}" if n >= 10 else f"{n:,.1f}"
+
+
+def reliability(iou: float | None) -> tuple[str, str]:
+    if iou is None:
+        return "Not tested", "bc-rel-na"
+    if iou >= 0.7:
+        return "Reliable", "bc-rel-hi"
+    if iou >= 0.4:
+        return "Fair", "bc-rel-md"
+    return "Unreliable", "bc-rel-lo"
+
+
+def site_area_ha(report: dict) -> float:
+    return sum(best_areas(report).values())
+
+
+def glance_html(meta: dict, report: dict) -> str:
+    a = best_areas(report)
+    tot = site_area_ha(report) or 1
+    bc = sum(a[k] for k in BLUE_CARBON_KEYS)
+    parts = [f"{fmt(a[k], 1)} hectares of {CLS[k].name.lower()}" for k in BLUE_CARBON_KEYS if a[k] >= 0.05]
+    found = (", ".join(parts[:-1]) + " and " + parts[-1]) if len(parts) > 1 else (parts[0] if parts else "")
+    cb = report["carbon"]
+    s, q = cb["total_stock_tCO2e"], cb["total_sequestration_tCO2e_per_yr"]
+    km2 = tot / 100
+    if bc < 0.05:
+        body = (f"In this {km2:,.1f} square kilometre area, the AI found no mangrove, salt marsh or seagrass, so there "
+                "is no blue carbon to report.")
+    else:
+        body = (f"In this {km2:,.1f} square kilometre area, the AI found <b>{found}</b>. "
+                f"Together these habitats hold an estimated <b>{fmt(s['mean'])} tonnes of CO₂</b>, about what "
+                f"<b>{car_equiv(s['mean'])} cars</b> emit in a year{tip(T_CARS)}, and absorb roughly "
+                f"<b>{fmt(q['mean'], 1)} more tonnes every year</b>.")
+    return (f'<div class="bc-glance"><div class="bc-glance-h">What we found</div><p>{body}</p></div>')
+
+
+def habitat_cards(report: dict) -> str:
+    a = best_areas(report)
+    tot = site_area_ha(report) or 1
+    per = report["carbon"]["classes"]
+    cards = []
+    for k in BLUE_CARBON_KEYS:
+        c = CLS[k]
+        if a[k] >= 0.05 and k in per:
+            v = per[k]
+            body = (f'<div class="big">{fmt(a[k], 1)}<small> hectares{tip(T_HA)}</small></div>'
+                    f'<div class="sub">{100 * a[k] / tot:.1f}% of the mapped area</div>'
+                    f'<div class="kv"><span>Carbon stored{tip(T_CO2)}</span><b>{fmt(v["stock_tCO2e"]["mean"])} t CO₂</b></div>'
+                    f'<div class="kv"><span>Absorbed each year</span><b>{fmt(v["sequestration_tCO2e_per_yr"]["mean"], 1)} t CO₂</b></div>')
+        else:
+            body = '<div class="big muted">None found</div><div class="sub">Not detected in this area</div>'
+        cards.append(f'<div class="bc-card bc-hab" style="border-top:3px solid {c.color}">'
+                     f'<div class="name"><span class="sw" style="background:{c.color}"></span>{c.name}</div>'
+                     f'{body}<div class="desc">{HABITAT_INFO[k]}</div></div>')
+    return f'<div class="bc-grid3">{"".join(cards)}</div>'
+
+
+def carbon_cards(report: dict) -> str:
+    cb = report["carbon"]
+    s, q = cb["total_stock_tCO2e"], cb["total_sequestration_tCO2e_per_yr"]
+    v = cb["indicative_annual_value_usd"]
+    items = [
+        ("Carbon stored", T_CO2, fmt(s["mean"]), "tonnes of CO₂", "",
+         f"Likely between {fmt(s['p05'])} and {fmt(s['p95'])}{tip(T_RANGE)}",
+         f"The carbon already locked in the soil and plants. If these habitats were destroyed, much of it would "
+         f"escape back into the air, roughly the yearly exhaust of {car_equiv(s['mean'])} cars."),
+        ("Absorbed each year", "How much new carbon these habitats pull out of the air and bury in their soil every "
+         "year, as long as they stay healthy.", fmt(q["mean"], 1), "tonnes of CO₂ per year",
+         "",
+         f"Likely between {fmt(q['p05'], 1)} and {fmt(q['p95'], 1)}{tip(T_RANGE)}",
+         f"Like taking {car_equiv(q['mean'])} cars off the road, every year, for free."),
+        ("Possible carbon credit value", "Companies buy carbon credits to offset their emissions. Voluntary-market "
+         "prices for coastal ecosystem credits are roughly $15–40 per tonne of CO₂.", "$" + fmt(v["mid"]), "per year", "",
+         f"Between ${fmt(v['low'])} and ${fmt(v['high'])} per year",
+         "A rough idea of what protecting these habitats could earn, based on the yearly uptake only. Not a "
+         "financial valuation."),
+    ]
+    html = "".join(
+        f'<div class="bc-card bc-kpi"><div class="l">{t}{tip(ti)}</div><div class="v">{val}<small>{u}</small></div>{bar}'
+        f'<div class="s">{rng}</div><div class="what">{what}</div></div>' for t, ti, val, u, bar, rng, what in items)
+    return f'<div class="bc-grid3">{html}</div>'
+
+
+def reliability_html(model: dict | None) -> str:
+    if not model or not model.get("test"):
+        return '<div class="bc-note">No accuracy test is attached to this model.</div>'
+    t = model["test"]
+    rows = ['<div class="bc-relrow bc-relhead"><span></span><span>Habitat</span><span>Verdict</span>'
+            f'<span class="sc">Score{tip(T_SCORE)}</span></div>']
+    for c in CLASSES:
+        iou = t["iou"].get(c.key)
+        label, cls = reliability(iou)
+        score = "–" if iou is None else f"{iou:.2f}"
+        rows.append(f'<div class="bc-relrow"><span class="sw" style="background:{c.color}"></span>'
+                    f'<span class="n">{c.name}</span><span class="bc-rel {cls}">{label}</span>'
+                    f'<span class="sc">{score}</span></div>')
+    return ('<div class="bc-rels">' + "".join(rows) + '</div><div class="bc-note" style="margin-top:.6rem">'
+            "Reliable = score 0.70 or higher · Fair = 0.40 to 0.70 · Unreliable = below 0.40. "
+            "“Not tested” means the test areas contained none of that habitat.</div>")
+
+
+def summary_html(meta: dict, report: dict) -> str:
+    a = best_areas(report)
+    tot = site_area_ha(report) or 1
+    top = sorted(a.items(), key=lambda kv: -kv[1])[:2]
+    bc = {k: a[k] for k in BLUE_CARBON_KEYS if a[k] >= 0.05}
+    cb = report["carbon"]
+    s, q = cb["total_stock_tCO2e"], cb["total_sequestration_tCO2e_per_yr"]
+    model = meta.get("model") or {}
+    t = model.get("test") or {}
+    pts = [("The area", f"Mostly {CLS[top[0][0]].name.lower()} ({100 * top[0][1] / tot:.0f}%) and "
+                        f"{CLS[top[1][0]].name.lower()} ({100 * top[1][1] / tot:.0f}%), across {tot / 100:,.1f} km².")]
+    if bc:
+        lead = max(bc, key=bc.get)
+        pts.append(("Blue carbon habitat", f"{fmt(sum(bc.values()), 1)} hectares, mostly {CLS[lead].name.lower()} "
+                                           f"({fmt(bc[lead], 1)} hectares). That is {100 * sum(bc.values()) / tot:.1f}% "
+                                           "of the area."))
+        pts.append(("Carbon", f"About {fmt(s['mean'])} tonnes of CO₂ stored, with roughly {fmt(q['mean'], 1)} tonnes "
+                              "added every year."))
+    else:
+        pts.append(("Blue carbon habitat", "None detected, so no carbon is counted for this area."))
+    if t:
+        good = [CLS[k].name.lower() for k, v in t["iou"].items() if v is not None and v >= 0.7]
+        weak = [CLS[k].name.lower() for k, v in t["iou"].items() if v is not None and v < 0.4 and CLS[k].blue_carbon]
+        conf = (" and ".join(good).capitalize() + (" are" if len(good) > 1 else " is") + " mapped reliably") if good \
+            else "Map accuracy is limited"
+        if weak:
+            conf += (f", but {' and '.join(weak)} detection is not yet reliable, so the carbon numbers are a first "
+                     "estimate, not a measurement")
+        pts.append(("How much to trust it", conf + "."))
+    if model.get("pilot"):
+        pts.append(("What's next", "This page uses the early pilot model. The full BlueCarbon-AI model is trained on 11 "
+                                  "coastal sites across four continents to find marsh, mangrove and seagrass far more "
+                                  "reliably."))
+    pts.append(("Fine print", "Carbon values are IPCC global averages for each habitat. Selling real carbon credits "
+                              "would require on-site soil measurements."))
+    rows = "".join(f'<div class="bc-sumrow"><div class="k">{k}</div><div class="v">{v}</div></div>' for k, v in pts)
+    return f'<div class="bc-card bc-summary">{rows}</div>'
+
+
+def map_legend(report: dict, only_blue: bool) -> str:
+    a = best_areas(report)
+    items = [c for c in CLASSES if a[c.key] >= 0.05 and (c.blue_carbon or not only_blue)]
+    return '<div class="bc-maplegend">' + "".join(
+        f'<span><i style="background:{c.color}"></i>{c.name}</span>' for c in items) + "</div>"
+
+
 # ----------------------------------------------------------------------------- chrome
 st.markdown(
-    f'<div class="bc-top"><div class="bc-brand">{LOGO}<div class="bc-word">Blue<span>Carbon</span></div>'
-    f'<span class="bc-tag">v2</span></div><div class="bc-links"><a href="{REPO}" target="_blank">GitHub</a>'
-    f'<a href="{REPO}/blob/main/docs/METHODOLOGY.md" target="_blank">Docs</a>'
-    f'<a href="https://colab.research.google.com/github/yanicksanchez14-creator/bluecarbon-ai/blob/main/notebooks/'
-    f'train_colab.ipynb" target="_blank">Train the model</a></div></div>'
-    '<div class="bc-hero"><div><div class="bc-eyebrow">Coastal carbon intelligence</div>'
-    "<h1>Mapping the ocean's carbon sinks from space</h1>"
-    "<p>BlueCarbon segments mangrove, salt marsh and seagrass in 10&nbsp;m Sentinel-2 imagery with a deep "
-    "learning model, then estimates the carbon they store, with the uncertainty shown, not hidden.</p></div>"
-    '<div class="bc-facts"><div class="bc-fact"><b>10 m</b><small>Sentinel-2 resolution</small></div>'
-    '<div class="bc-fact"><b>6 classes</b><small>3 blue carbon habitats</small></div>'
-    '<div class="bc-fact"><b>IPCC Tier 1</b><small>Monte Carlo intervals</small></div></div></div>',
+    f'<div class="bc-top"><div class="bc-brand">{LOGO}<div class="bc-word">BlueCarbon<span>-AI</span></div>'
+    f'</div><div class="bc-links"><a href="{REPO}" target="_blank">GitHub</a>'
+    f'<a href="{REPO}/blob/main/docs/METHODOLOGY.md" target="_blank">How it works</a></div></div>'
+    '<div class="bc-hero"><div>'
+    "<h1>Finding the coastal ecosystems that fight climate change</h1>"
+    "<p>Mangrove forests, salt marshes and seagrass meadows pull carbon dioxide out of the air and lock it away in "
+    "their soils, sometimes for thousands of years. Scientists call this <b>blue carbon</b>. These habitats are "
+    "disappearing fast, and you can't protect what you haven't mapped.</p>"
+    "<p style='margin-top:.7rem'><b>BlueCarbon-AI</b> uses free satellite images and a deep-learning model to find "
+    "these habitats automatically, measure how much area they cover, and estimate how much carbon they hold.</p></div>"
+    '<div class="bc-how">'
+    f'<div class="bc-howstep"><span class="num">1</span><div><b>Satellite image</b>'
+    f'<small>A cloud-free photo of the coast from the Sentinel-2 satellites{tip(T_S2)}</small></div></div>'
+    '<div class="bc-howstep"><span class="num">2</span><div><b>AI habitat map</b>'
+    "<small>A neural network labels every 10 × 10 m patch as water, marsh, mangrove, seagrass or land</small></div></div>"
+    f'<div class="bc-howstep"><span class="num">3</span><div><b>Carbon estimate</b>'
+    f'<small>Area × published carbon values per habitat, with an honest uncertainty range{tip(T_TIER1)}</small></div></div>'
+    "</div></div>",
     unsafe_allow_html=True,
 )
 
 tab_explore, tab_analyze, tab_method = st.tabs(["Explore sites", "Analyze an area", "Methodology"])
 
 # ----------------------------------------------------------------------------- explore
-VIEWS = {"Habitats": "classes", "Blue carbon": "bluecarbon", "Satellite": None, "False color": "falsecolor"}
+VIEWS = {"Habitats": "classes", "Blue carbon only": "bluecarbon", "Satellite": None, "False color": "falsecolor"}
+HINTS = {
+    "Habitats": "Each color shows what the AI thinks covers that patch of ground or water.",
+    "Blue carbon only": "Only mangrove, salt marsh and seagrass: the habitats counted in the carbon numbers.",
+    "Satellite": "The cloud-free satellite photo the AI analysed, in natural color.",
+    "False color": "An infrared view where healthy plants glow red. Scientists use it to spot vegetation that is hard to see in normal color.",
+}
+
+
+def section(title: str, sub: str = "") -> None:
+    st.markdown(f'<div class="bc-h2">{title}</div>' + (f'<div class="bc-h2sub">{sub}</div>' if sub else ""),
+                unsafe_allow_html=True)
+
+
+def render_results(meta: dict, report: dict, map_fn) -> None:
+    st.markdown(glance_html(meta, report), unsafe_allow_html=True)
+
+    section("The map", "Use the buttons to switch between the satellite photo and what the AI found. Zoom and drag to explore.")
+    c1, c2 = st.columns([3, 1])
+    view = c1.segmented_control("Map layer", list(VIEWS), default="Habitats", key=f"view_{meta['title']}") or "Habitats"
+    opacity = c2.slider("Color overlay strength", 0.0, 1.0, 0.8, 0.05, key=f"op_{meta['title']}")
+    map_fn(view, opacity)
+    legend = map_legend(report, view == "Blue carbon only") if VIEWS[view] in ("classes", "bluecarbon") else ""
+    st.markdown(legend + f'<div class="bc-hint">{HINTS[view]}</div>', unsafe_allow_html=True)
+
+    section("Blue carbon habitats", "The three coastal ecosystems that store large amounts of carbon, and how much of each the AI found here.")
+    st.markdown(habitat_cards(report), unsafe_allow_html=True)
+
+    section("What that means for the climate", "Estimated from the habitat areas above and published carbon values per hectare." + tip(T_TIER1))
+    st.markdown(carbon_cards(report), unsafe_allow_html=True)
+
+    section("How much can you trust this map?", "We tested the AI on areas it never saw during training and compared its map with trusted reference maps.")
+    r1, r2 = st.columns([0.55, 0.45], gap="large")
+    with r1:
+        st.markdown(reliability_html(meta.get("model")), unsafe_allow_html=True)
+    with r2:
+        with st.expander("Technical details"):
+            model_panel(meta.get("model"))
+            st.markdown('<div class="bc-section">Carbon by habitat</div>', unsafe_allow_html=True)
+            st.markdown(carbon_table(report), unsafe_allow_html=True)
+            st.markdown(f'<div class="bc-note" style="margin-top:.5rem">{report["carbon"]["method"]}. Areas are '
+                        f"accuracy-corrected{tip(T_ADJ)}.</div>", unsafe_allow_html=True)
+
+    section("Summary", "The key takeaways for this site.")
+    st.markdown(summary_html(meta, report), unsafe_allow_html=True)
+
 
 with tab_explore:
     sites = list_sites()
     if not sites:
         st.warning("No demo data found in demo_data/.")
     else:
-        c1, c2, c3 = st.columns([1.3, 1.6, 1])
+        c1, c2 = st.columns([1, 2], gap="large")
         title = c1.selectbox("Site", list(sites))
-        view = c2.segmented_control("Layer", list(VIEWS), default="Habitats", key="view") or "Habitats"
-        opacity = c3.slider("Overlay opacity", 0.0, 1.0, 0.8, 0.05)
         d = sites[title]
         meta = json.loads((d / "meta.json").read_text())
         report = meta["report"] if meta["kind"] == "single" else meta["t1"]
+        where = " · ".join(x for x in [meta.get("region"), meta.get("period")] if x)
+        c2.markdown(f'<div class="bc-site" style="padding-top:.2rem"><h3>{meta["title"]}</h3>'
+                    f'<div class="meta">{where}</div><p>{meta.get("description", "")}</p></div>',
+                    unsafe_allow_html=True)
+        tag = "" if meta["kind"] == "single" else "_t1"
 
-        st.markdown(kpi_cards(report), unsafe_allow_html=True)
-
-        left, right = st.columns([0.64, 0.36], gap="large")
-        with left:
+        def demo_map(view, opacity):
             m = make_map(meta["bounds"])
-            tag = "" if meta["kind"] == "single" else "_t1"
             if view == "False color":
                 overlay(m, png_uri(d / f"falsecolor{tag}.png"), meta["bounds"], 1.0)
             else:
@@ -367,44 +622,10 @@ with tab_explore:
                 if VIEWS[view]:
                     overlay(m, png_uri(d / f"{VIEWS[view]}{tag}.png"), meta["bounds"], opacity)
             outline(m, meta["bounds"])
-            st.markdown('<div class="bc-map">', unsafe_allow_html=True)
-            st_folium(m, height=540, use_container_width=True, returned_objects=[], key=f"map_{title}_{view}_{opacity}")
-            st.markdown("</div>", unsafe_allow_html=True)
-            hints = {
-                "Habitats": "Model output over the Sentinel-2 composite. Toggle layers above.",
-                "Blue carbon": "Only mangrove, salt marsh and seagrass: the habitats counted in the carbon estimate.",
-                "Satellite": "Cloud-masked Sentinel-2 median composite (true color).",
-                "False color": "Near-infrared / red / green. Healthy vegetation shows up red, the same view used "
-                               "to hand-label marsh in QGIS.",
-            }
-            st.markdown(f'<div class="bc-hint">{hints[view]}</div>', unsafe_allow_html=True)
-        with right:
-            where = " · ".join(x for x in [meta.get("region"), meta.get("period")] if x)
-            st.markdown(f'<div class="bc-site"><h3>{meta["title"]}</h3><div class="meta">{where}</div>'
-                        f'<p>{meta.get("description", "")}</p></div>', unsafe_allow_html=True)
-            st.markdown('<div class="bc-section">Habitat composition</div>', unsafe_allow_html=True)
-            st.markdown(legend_html(report), unsafe_allow_html=True)
-            if report.get("error_adjusted_areas_ha"):
-                st.markdown('<div class="bc-note">Areas are error-adjusted with the model\'s held-out confusion '
-                            "matrix (Olofsson et al., 2014), which corrects the raw map's over- and under-counting.</div>",
-                            unsafe_allow_html=True)
+            st_folium(m, height=560, use_container_width=True, returned_objects=[],
+                      key=f"map_{title}_{view}_{opacity}")
 
-        b1, b2 = st.columns([0.58, 0.42], gap="large")
-        with b1:
-            st.markdown('<div class="bc-section">Carbon by habitat</div>', unsafe_allow_html=True)
-            st.markdown(carbon_table(report), unsafe_allow_html=True)
-            st.markdown(f'<div class="bc-note" style="margin-top:.6rem">{report["carbon"]["method"]}. Stock = soil '
-                        "organic carbon to 1 m + living biomass. Credit value uses annual sequestration only. Tier 1 "
-                        "values are global averages: an order-of-magnitude screen, not a crediting methodology.</div>",
-                        unsafe_allow_html=True)
-            if meta["kind"] == "change":
-                ch = meta["change"]["change"]
-                st.markdown('<div class="bc-section">Change</div>', unsafe_allow_html=True)
-                st.markdown(f"Net blue carbon stock change: **{fmt(ch['net_stock_change_tCO2e']['mean'])} tCO₂e**")
-        with b2:
-            st.markdown('<div class="bc-section">Model</div>', unsafe_allow_html=True)
-            with st.container(border=True):
-                model_panel(meta.get("model"))
+        render_results(meta, report, demo_map)
 
 
 # ----------------------------------------------------------------------------- analyze
@@ -450,7 +671,7 @@ with tab_analyze:
   <div class="bc-eyebrow">On-demand analysis</div>
   <h3 style="margin:.35rem 0 .4rem">Map any coastline in about a minute</h3>
   <p style="color:var(--ink-2);line-height:1.6;margin:0 0 .9rem">Draw a box anywhere on Earth, pick a season, and
-  BlueCarbon pulls a fresh cloud-free Sentinel-2 composite from Google Earth Engine, runs the model and returns a habitat
+  BlueCarbon-AI pulls a fresh cloud-free Sentinel-2 composite from Google Earth Engine, runs the model and returns a habitat
   map, carbon report and downloadable GeoTIFF.</p>
   <div class="bc-note">This deployment hasn't been connected to Earth Engine yet, so the live pipeline is switched off.
   Everything in <b>Explore sites</b> works without it. The same analysis runs locally with
@@ -515,22 +736,35 @@ with tab_analyze:
                 status.update(label="Analysis complete", state="complete", expanded=False)
             mb, bnds = _to_mercator(tmp / "image.tif", list(range(1, 11)), Resampling.bilinear, 0)
             mc, _ = _to_mercator(tmp / "pred.tif", [1], Resampling.nearest, 255)
-            st.markdown(kpi_cards(rep), unsafe_allow_html=True)
-            l2, r2 = st.columns([0.64, 0.36], gap="large")
-            with l2:
-                m2 = make_map(bnds, 520)
-                overlay(m2, rgba_uri(true_color(mb)), bnds)
-                overlay(m2, rgba_uri(class_rgba(mc[0], 200)), bnds, 0.8)
-                st_folium(m2, height=520, use_container_width=True, returned_objects=[], key="result")
-            with r2:
-                st.markdown('<div class="bc-section">Habitat composition</div>', unsafe_allow_html=True)
-                st.markdown(legend_html(rep), unsafe_allow_html=True)
-                d1, d2 = st.columns(2)
-                d1.download_button("Habitat GeoTIFF", (tmp / "pred.tif").read_bytes(), "bluecarbon_habitats.tif",
-                                   width="stretch")
-                d2.download_button("Report (JSON)", json.dumps(rep, indent=2), "bluecarbon_report.json",
-                                   width="stretch")
-            st.markdown(carbon_table(rep), unsafe_allow_html=True)
+            from bluecarbon.schema import KEY_TO_ID
+
+            layers = {
+                "classes": rgba_uri(class_rgba(mc[0], 200)),
+                "bluecarbon": rgba_uri(class_rgba(mc[0], 220, [KEY_TO_ID[k] for k in BLUE_CARBON_KEYS])),
+                "falsecolor": rgba_uri(true_color(mb, rgb_bands=("B8", "B4", "B3"), gamma=1.0)),
+            }
+            live_meta = {"title": "Your area", "model": {**ck.get("extra", {}), "arch": ck["arch"],
+                                                         "encoder": ck["encoder"], "test": ck["metrics"].get("test")}}
+            st.session_state["live"] = {"meta": live_meta, "report": rep, "bounds": bnds, "layers": layers,
+                                        "rgb": rgba_uri(true_color(mb)), "tif": (tmp / "pred.tif").read_bytes()}
+
+        live = st.session_state.get("live")
+        if live:
+            def live_map(view, opacity):
+                m2 = make_map(live["bounds"])
+                if view == "False color":
+                    overlay(m2, live["layers"]["falsecolor"], live["bounds"])
+                else:
+                    overlay(m2, live["rgb"], live["bounds"])
+                    if VIEWS[view]:
+                        overlay(m2, live["layers"][VIEWS[view]], live["bounds"], opacity)
+                st_folium(m2, height=540, use_container_width=True, returned_objects=[], key=f"live_{view}_{opacity}")
+
+            render_results(live["meta"], live["report"], live_map)
+            d1, d2, _ = st.columns([1, 1, 2])
+            d1.download_button("Download habitat GeoTIFF", live["tif"], "bluecarbon_habitats.tif", width="stretch")
+            d2.download_button("Download report (JSON)", json.dumps(live["report"], indent=2), "bluecarbon_report.json",
+                               width="stretch")
 
 # ----------------------------------------------------------------------------- methodology
 with tab_method:
@@ -623,7 +857,7 @@ as independent samples, so they understate the true uncertainty.</li>
     )
 
 st.markdown(
-    f'<div class="bc-footer"><span>BlueCarbon v2 · Built by Yanick Sanchez</span>'
+    f'<div class="bc-footer"><span>BlueCarbon-AI · Built by Yanick Sanchez</span>'
     f'<span><a href="{REPO}" target="_blank">Source on GitHub</a> · MIT License</span></div>',
     unsafe_allow_html=True,
 )
