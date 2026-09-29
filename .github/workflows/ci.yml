@@ -9,21 +9,22 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python: ["3.10", "3.12"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
       - name: Install
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -e ".[dev]"
+          pip install -e ".[dev]" pytest-github-actions-annotate-failures
       - name: Lint
         run: ruff check src tests app scripts
       - name: Test
-        run: pytest -q
+        run: pytest -q -rf --tb=short
       - name: Pilot checkpoint loads
         run: python -c "from bluecarbon.model import load_checkpoint; load_checkpoint('models/pilot_mission_bay_2018.pt')"
