@@ -21,6 +21,8 @@ dependencies = [
   "typer>=0.9",
   "matplotlib>=3.7",
   "tqdm>=4.65",
+  "scipy>=1.10",
+  "lightgbm>=4.0",
 ]
 
 [project.optional-dependencies]

@@ -21,7 +21,7 @@ weights on its own training chips gives **49% overall accuracy and 0.00 IoU for 
 | 12 | Carbon: single point values, value computed from *standing stock* | False precision; standing stock isn't creditable | Tier 1 ranges, Monte Carlo 90% intervals, value from annual sequestration only |
 | 13 | Hard-coded Windows paths, duplicate `old*.txt` scripts, no tests | Not reproducible | Installable package, CLI, YAML config, pytest + CI |
 
-## Pilot model (what the demo ships today)
+## Pilot data and the first U-Net pilot
 
 The original Mission Bay hand labels are good data, just far too little of it. To keep them
 useful, they were converted to the v2 schema:
@@ -41,6 +41,6 @@ pooled confusion in `data/pilot/cv_metrics.json`):
 | **mIoU** | **0.50** (overall accuracy 0.94, κ 0.89) |
 
 Water and land are easy. The blue carbon classes fail when the model is trained on a single
-bay with a few thousand marsh pixels. That result is the motivation for v2's multi-site training
-data (`notebooks/train_colab.ipynb`). Note that overall accuracy is 94% here too, while salt marsh
+bay with a few thousand marsh pixels. That result motivated two fixes: a spectral model suited to small data (salt marsh 0.72, seagrass 0.52;
+see `docs/EXPERIMENTS.md`), and multi-site training data (`notebooks/train_colab.ipynb`). Note that overall accuracy is 94% here too, while salt marsh
 is almost entirely missed.

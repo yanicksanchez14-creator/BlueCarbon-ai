@@ -5,7 +5,7 @@
 year: 2021
 
 sites:
-  - {name: mission_bay_ca,       bbox: [-117.265, 32.745, -117.185, 32.810], role: train, note: "Kendall-Frost salt marsh, San Diego"}
+  - {name: mission_bay_ca,       bbox: [-117.265, 32.745, -117.185, 32.810], role: test,  note: "Held-out: graded against the 2025 hand labels"}
   - {name: south_sd_bay_ca,      bbox: [-117.150, 32.560, -117.080, 32.640], role: train, note: "South San Diego Bay NWR salt marsh"}
   - {name: south_sf_bay_ca,      bbox: [-122.150, 37.420, -121.980, 37.550], role: train, note: "Don Edwards SF Bay NWR tidal marsh"}
   - {name: ten_thousand_isl_fl,  bbox: [-81.600, 25.800, -81.350, 26.000], role: train, note: "Mangrove forest, SW Florida"}

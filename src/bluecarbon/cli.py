@@ -74,32 +74,93 @@ def chips(config: str = CfgOpt, sites: str = SitesOpt):
 
 
 @app.command()
-def train(config: str = CfgOpt, epochs: int = typer.Option(None), device: str = typer.Option(None)):
-    """Train the segmentation model on the chip index."""
+def train(config: str = CfgOpt, kind: str = typer.Option("both", help="spectral | unet | both"),
+          epochs: int = typer.Option(None), device: str = typer.Option(None)):
+    """Train habitat models on the chip index. With `both`, the better one on validation becomes model/best."""
+    import shutil
+
     from .tiling import read_index
-    from .train import train as run
 
     cfg = _cfg(config)
     if epochs:
         cfg.train.epochs = epochs
     if device:
         cfg.train.device = device
-    res = run(cfg, read_index(cfg.work / "chips" / "index.json"), cfg.work / "model")
-    typer.echo(json.dumps({k: res[k] for k in ("best_epoch", "val", "test") if k in res}, indent=2))
+    recs = read_index(cfg.work / "chips" / "index.json")
+    out = cfg.work / "model"
+    scores = {}
+    if kind in ("spectral", "both"):
+        from .spectral import train_spectral
+
+        res = train_spectral(recs, out)
+        scores["spectral"] = (_blue_score(res.get("val")), out / "spectral.json")
+    if kind in ("unet", "both"):
+        from .train import train as run
+
+        res = run(cfg, recs, out)
+        scores["unet"] = (_blue_score(res.get("val")), out / "model.pt")
+    best = max(scores, key=lambda k: scores[k][0])
+    src = scores[best][1]
+    shutil.copy(src, out / ("best" + src.suffix))
+    (out / "best.txt").write_text(f"{best} {src.name} blue-carbon val IoU {scores[best][0]:.3f}\n")
+    typer.echo({k: round(v[0], 3) for k, v in scores.items()})
+    typer.echo(f"best model: {best} -> {out / ('best' + src.suffix)}")
+
+
+def _blue_score(summary: dict | None) -> float:
+    """Mean validation IoU over the blue carbon classes present (what the product is for)."""
+    from .schema import BLUE_CARBON_KEYS
+
+    if not summary:
+        return -1.0
+    v = [summary["iou"][k] for k in BLUE_CARBON_KEYS if summary["iou"].get(k) is not None]
+    return float(sum(v) / len(v)) if v else float(summary.get("mIoU") or -1)
+
+
+@app.command()
+def evaluate(model: Path = typer.Option(..., "--model", "-m"), image: Path = typer.Option(...),
+             label: Path = typer.Option(...), out: Path = typer.Option(None)):
+    """Score a model against an independent labelled scene (e.g. the Mission Bay hand labels)."""
+    import rasterio
+
+    from .metrics import confusion, summarize
+    from .predictors import load_predictor
+
+    pr = load_predictor(model)
+    with rasterio.open(image) as s:
+        bands = s.read()
+    with rasterio.open(label) as s:
+        ref = s.read(1)
+    pred, _ = pr.predict(bands)
+    cm = confusion(ref, pred)
+    res = {"summary": summarize(cm), "confusion": cm.tolist(), "model": str(model), "image": str(image)}
+    if out:
+        Path(out).write_text(json.dumps(res, indent=2))
+    typer.echo(json.dumps({k: res["summary"][k] for k in ("mIoU", "macro_f1", "iou")}, indent=2))
 
 
 @app.command()
 def predict(image: Path, model: Path = typer.Option(..., "--model", "-m"), out: Path = typer.Option(None),
             config: str = CfgOpt):
-    """Predict a habitat map (GeoTIFF: band 1 class, band 2 confidence %)."""
-    from .model import load_checkpoint, resolve_device
-    from .predict import predict_raster
+    """Predict a habitat map (GeoTIFF: band 1 class, band 2 confidence %). Works with either model type."""
+    import numpy as np
+    import rasterio
+
+    from .predictors import load_predictor
+    from .schema import IGNORE_INDEX
 
     cfg = _cfg(config)
-    net, norm, _ = load_checkpoint(model, resolve_device(cfg.train.device))
+    pr = load_predictor(model, cfg.train.device)
     out = out or image.with_name(image.stem + "_pred.tif")
-    p = cfg.predict
-    predict_raster(net, norm, image, out, p.tile, p.overlap, p.tta)
+    with rasterio.open(image) as src:
+        bands, prof = src.read(), src.profile.copy()
+    cls, conf = pr.predict(bands, cfg.predict.tile, cfg.predict.overlap, cfg.predict.tta)
+    prof.update(count=2, dtype="uint8", nodata=IGNORE_INDEX, compress="deflate")
+    Path(out).parent.mkdir(parents=True, exist_ok=True)
+    with rasterio.open(out, "w", **prof) as dst:
+        dst.write(cls, 1)
+        dst.write(np.round(conf * 100).astype(np.uint8), 2)
+        dst.descriptions = ("class", "confidence_pct")
     typer.echo(f"wrote {out}")
 
 
@@ -108,15 +169,14 @@ def report(prediction: Path, model: Path = typer.Option(None, "--model", "-m",
                                                         help="Adds error-adjusted areas from test confusion"),
            config: str = CfgOpt, out: Path = typer.Option(None)):
     """Area + carbon stock / sequestration report for a prediction raster."""
-    import torch
-
     from .report import scene_report, to_markdown, write_report
 
     cfg = _cfg(config)
     cm = None
     if model:
-        ck = torch.load(model, map_location="cpu", weights_only=False)
-        cm = ck.get("metrics", {}).get("test_confusion")
+        from .predictors import model_card
+
+        cm = model_card(model).get("metrics", {}).get("test_confusion")
     rep = scene_report(prediction, cfg.carbon, cm)
     write_report(rep, out or prediction.parent, prediction.stem + "_report")
     typer.echo(to_markdown(rep))

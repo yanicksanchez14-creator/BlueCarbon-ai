@@ -29,7 +29,7 @@ from bluecarbon.config import load_config  # noqa: E402
 from bluecarbon.schema import BLUE_CARBON_KEYS, CLASSES  # noqa: E402
 
 DEMO_DIR = ROOT / "demo_data"
-DEFAULT_MODEL = ROOT / "models" / "pilot_mission_bay_2018.pt"
+DEFAULT_MODEL = ROOT / "models" / "pilot_spectral_mission_bay_2018.json"
 REPO = "https://github.com/yanicksanchez14-creator/bluecarbon-ai"
 MAX_AREA_KM2 = 60
 ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -217,6 +217,7 @@ div[data-testid="stExpander"]{border:1px solid var(--line); border-radius:var(--
 .bc-rel-md{background:#fff6e8; color:#8a5a00; border-color:#f3d9a8;}
 .bc-rel-lo{background:#fdecec; color:#9b2c2c; border-color:#f3c4c4;}
 .bc-rel-na{background:#f1f4f5; color:#6a7a84; border-color:#e0e6e9;}
+.bc-found{margin-bottom:.8rem;} .bc-found p{margin:0; font-size:1.02rem; line-height:1.7; color:var(--ink);}
 .bc-summary ul{margin:.5rem 0 0; padding-left:1.1rem;}
 .bc-summary li{font-size:.95rem; line-height:1.65; color:var(--ink); margin:.2rem 0;}
 .bc-h2{font-size:1.15rem; font-weight:700; margin:2rem 0 .25rem; color:var(--ink);}
@@ -262,8 +263,8 @@ T_ADJ = ("Maps are never perfect. We correct each area using how often the model
 T_SCORE = ("How closely the model's map overlapped with trusted reference maps, on areas it never saw during training. "
            "1.00 = perfect match, 0 = no match.")
 T_S2 = "Sentinel-2 is a pair of European Space Agency satellites that photograph every coastline on Earth every 5 days, free."
-T_PILOT = ("An early version trained on a single bay (Mission Bay). It maps water and land well but has seen too little "
-           "marsh and seagrass to find them reliably. The full model trains on 11 coastal sites worldwide.")
+T_PILOT = ("Trained only on hand-labelled data from one bay (Mission Bay, 2018). It is well tested here, but other "
+           "coastlines look different. The full model trains on 11 coastal sites on four continents.")
 
 def png_uri(path: Path) -> str:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
@@ -337,6 +338,13 @@ def carbon_table(report: dict) -> str:
             + "".join(rows) + "</tbody></table>")
 
 
+def model_desc(model: dict) -> str:
+    if model.get("kind") == "spectral-lgbm":
+        return ("Gradient-boosted decision trees (LightGBM) reading each pixel's 10 satellite bands, 9 plant and water "
+                "indices, and the surrounding 30 m and 90 m neighbourhood")
+    return f"{model['arch']} neural network · {model['encoder']} encoder · 14 image bands"
+
+
 def model_panel(model: dict | None) -> None:
     if not model:
         return
@@ -345,7 +353,7 @@ def model_panel(model: dict | None) -> None:
              else '<span class="bc-badge" style="background:#e6f5f3;color:#0e5a67;border-color:#cfe9e5">'
                   'Multi-site model</span>')
     st.markdown(f'{badge}<div style="margin:.7rem 0 .2rem;font-weight:600">{model.get("name", "model")}</div>'
-                f'<div class="bc-note">{model["arch"]} neural network · {model["encoder"]} encoder · 14 image bands</div>',
+                f'<div class="bc-note">{model_desc(model)}</div>',
                 unsafe_allow_html=True)
     if t:
         rows = "".join(
@@ -376,7 +384,7 @@ T_CARS = "Based on the US EPA figure of about 4.6 tonnes of CO₂ per typical pa
 
 def car_equiv(tco2: float) -> str:
     n = tco2 / CAR_TCO2_PER_YR
-    return f"{n:,.0f}" if n >= 10 else f"{n:,.1f}"
+    return fmt(n) if n >= 10 else f"{n:,.1f}"
 
 
 def reliability(iou: float | None) -> tuple[str, str]:
@@ -410,7 +418,7 @@ def glance_html(meta: dict, report: dict) -> str:
                 f"Together these habitats hold an estimated <b>{fmt(s['mean'])} tonnes of CO₂</b>, about what "
                 f"<b>{car_equiv(s['mean'])} cars</b> emit in a year{tip(T_CARS)}, and absorb roughly "
                 f"<b>{fmt(q['mean'], 1)} more tonnes every year</b>.")
-    return (f'<div class="bc-glance"><div class="bc-glance-h">What we found</div><p>{body}</p></div>')
+    return body
 
 
 def habitat_cards(report: dict) -> str:
@@ -499,22 +507,47 @@ def summary_html(meta: dict, report: dict) -> str:
     else:
         pts.append(("Blue carbon habitat", "None detected, so no carbon is counted for this area."))
     if t:
-        good = [CLS[k].name.lower() for k, v in t["iou"].items() if v is not None and v >= 0.7]
-        weak = [CLS[k].name.lower() for k, v in t["iou"].items() if v is not None and v < 0.4 and CLS[k].blue_carbon]
-        conf = (" and ".join(good).capitalize() + (" are" if len(good) > 1 else " is") + " mapped reliably") if good \
-            else "Map accuracy is limited"
+        def names(pred):
+            n = [CLS[k].name.lower() for k, v in t["iou"].items() if v is not None and pred(v)]
+            return ", ".join(n[:-1]) + " and " + n[-1] if len(n) > 1 else (n[0] if n else "")
+
+        good, fair, weak = names(lambda v: v >= 0.7), names(lambda v: 0.4 <= v < 0.7), names(lambda v: v < 0.4)
+        parts = []
+        if good:
+            parts.append(f"{good.capitalize()} are mapped reliably")
+        if fair:
+            parts.append(f"{fair} is mapped fairly well but misses some patches")
         if weak:
-            conf += (f", but {' and '.join(weak)} detection is not yet reliable, so the carbon numbers are a first "
-                     "estimate, not a measurement")
+            parts.append(f"{weak} detection is not yet reliable")
+        conf = "; ".join(parts) or "Map accuracy has not been tested"
         pts.append(("How much to trust it", conf + "."))
     if model.get("pilot"):
-        pts.append(("What's next", "This page uses the early pilot model. The full BlueCarbon-AI model is trained on 11 "
-                                  "coastal sites across four continents to find marsh, mangrove and seagrass far more "
-                                  "reliably."))
+        pts.append(("What's next", "This map comes from the pilot model, trained on hand-labelled data from this bay. "
+                                  "The full BlueCarbon-AI model trains on 11 coastal sites on four continents so it "
+                                  "works on coastlines it has never seen, including mangrove forests."))
     pts.append(("Fine print", "Carbon values are IPCC global averages for each habitat. Selling real carbon credits "
                               "would require on-site soil measurements."))
     rows = "".join(f'<div class="bc-sumrow"><div class="k">{k}</div><div class="v">{v}</div></div>' for k, v in pts)
     return f'<div class="bc-card bc-summary">{rows}</div>'
+
+
+def in_image_html(report: dict, only_blue: bool = False) -> str:
+    """Legend listing everything in the image with its area and share."""
+    a = best_areas(report)
+    tot = sum(a.values()) or 1
+    rows = []
+    for c in CLASSES:
+        if only_blue and not c.blue_carbon:
+            continue
+        pct = 100 * a[c.key] / tot
+        tag = '<span class="bc">blue carbon</span>' if c.blue_carbon else ""
+        rows.append(f'<div class="row"><span class="sw" style="background:{c.color}"></span>'
+                    f'<span class="n">{c.name}{tag}</span><span class="a">{fmt(a[c.key], 1)} ha</span>'
+                    f'<span class="p">{pct:.1f}%</span><span></span>'
+                    f'<span class="bar"><i style="width:{max(pct, 0.6 if a[c.key] > 0 else 0):.1f}%;'
+                    f'background:{c.color}"></i></span></div>')
+    return (f'<div class="bc-legend">{"".join(rows)}</div><div class="bc-note" style="margin-top:.5rem">'
+            f"ha = hectares{tip(T_HA)} · % = share of the mapped area</div>")
 
 
 def map_legend(report: dict, only_blue: bool) -> str:
@@ -540,7 +573,7 @@ st.markdown(
     f'<div class="bc-howstep"><span class="num">1</span><div><b>Satellite image</b>'
     f'<small>A cloud-free photo of the coast from the Sentinel-2 satellites{tip(T_S2)}</small></div></div>'
     '<div class="bc-howstep"><span class="num">2</span><div><b>AI habitat map</b>'
-    "<small>A neural network labels every 10 × 10 m patch as water, marsh, mangrove, seagrass or land</small></div></div>"
+    "<small>An AI model labels every 10 × 10 m patch as water, marsh, mangrove, seagrass or land</small></div></div>"
     f'<div class="bc-howstep"><span class="num">3</span><div><b>Carbon estimate</b>'
     f'<small>Area × published carbon values per habitat, with an honest uncertainty range{tip(T_TIER1)}</small></div></div>'
     "</div></div>",
@@ -564,16 +597,20 @@ def section(title: str, sub: str = "") -> None:
                 unsafe_allow_html=True)
 
 
-def render_results(meta: dict, report: dict, map_fn) -> None:
-    st.markdown(glance_html(meta, report), unsafe_allow_html=True)
-
-    section("The map", "Use the buttons to switch between the satellite photo and what the AI found. Zoom and drag to explore.")
+def render_results(meta: dict, report: dict, map_fn, side_header: str = "") -> None:
     c1, c2 = st.columns([3, 1])
     view = c1.segmented_control("Map layer", list(VIEWS), default="Habitats", key=f"view_{meta['title']}") or "Habitats"
     opacity = c2.slider("Color overlay strength", 0.0, 1.0, 0.8, 0.05, key=f"op_{meta['title']}")
-    map_fn(view, opacity)
-    legend = map_legend(report, view == "Blue carbon only") if VIEWS[view] in ("classes", "bluecarbon") else ""
-    st.markdown(legend + f'<div class="bc-hint">{HINTS[view]}</div>', unsafe_allow_html=True)
+    left, right = st.columns([0.64, 0.36], gap="large")
+    with left:
+        map_fn(view, opacity)
+        st.markdown(f'<div class="bc-hint">{HINTS[view]}</div>', unsafe_allow_html=True)
+    with right:
+        if side_header:
+            st.markdown(side_header, unsafe_allow_html=True)
+        st.markdown(f'<div class="bc-section">In this image{tip("Area of each class the AI found, corrected for its known mistakes. " + T_ADJ)}</div>',
+                    unsafe_allow_html=True)
+        st.markdown(in_image_html(report, view == "Blue carbon only"), unsafe_allow_html=True)
 
     section("Blue carbon habitats", "The three coastal ecosystems that store large amounts of carbon, and how much of each the AI found here.")
     st.markdown(habitat_cards(report), unsafe_allow_html=True)
@@ -593,7 +630,8 @@ def render_results(meta: dict, report: dict, map_fn) -> None:
             st.markdown(f'<div class="bc-note" style="margin-top:.5rem">{report["carbon"]["method"]}. Areas are '
                         f"accuracy-corrected{tip(T_ADJ)}.</div>", unsafe_allow_html=True)
 
-    section("Summary", "The key takeaways for this site.")
+    section("Summary", "What we found at this site, in plain words.")
+    st.markdown(f'<div class="bc-card bc-found"><p>{glance_html(meta, report)}</p></div>', unsafe_allow_html=True)
     st.markdown(summary_html(meta, report), unsafe_allow_html=True)
 
 
@@ -602,15 +640,14 @@ with tab_explore:
     if not sites:
         st.warning("No demo data found in demo_data/.")
     else:
-        c1, c2 = st.columns([1, 2], gap="large")
+        c1, _ = st.columns([1, 2], gap="large")
         title = c1.selectbox("Site", list(sites))
         d = sites[title]
         meta = json.loads((d / "meta.json").read_text())
         report = meta["report"] if meta["kind"] == "single" else meta["t1"]
         where = " · ".join(x for x in [meta.get("region"), meta.get("period")] if x)
-        c2.markdown(f'<div class="bc-site" style="padding-top:.2rem"><h3>{meta["title"]}</h3>'
-                    f'<div class="meta">{where}</div><p>{meta.get("description", "")}</p></div>',
-                    unsafe_allow_html=True)
+        side = (f'<div class="bc-site"><h3>{meta["title"]}</h3><div class="meta">{where}</div>'
+                f'<p>{meta.get("description", "")}</p></div>')
         tag = "" if meta["kind"] == "single" else "_t1"
 
         def demo_map(view, opacity):
@@ -625,7 +662,7 @@ with tab_explore:
             st_folium(m, height=560, use_container_width=True, returned_objects=[],
                       key=f"map_{title}_{view}_{opacity}")
 
-        render_results(meta, report, demo_map)
+        render_results(meta, report, demo_map, side)
 
 
 # ----------------------------------------------------------------------------- analyze
@@ -642,7 +679,7 @@ def secret(name: str) -> str | None:
 
 @st.cache_resource
 def get_model():
-    from bluecarbon.model import load_checkpoint
+    from bluecarbon.predictors import load_predictor
 
     url, path = secret("MODEL_URL"), DEFAULT_MODEL
     if url:
@@ -651,7 +688,7 @@ def get_model():
         path = Path(tempfile.gettempdir()) / "bluecarbon_model.pt"
         if not path.exists():
             urllib.request.urlretrieve(url, path)
-    return load_checkpoint(path)
+    return load_predictor(path)
 
 
 @st.cache_resource
@@ -701,7 +738,6 @@ with tab_analyze:
             from bluecarbon import gee
             from bluecarbon.demo import _to_mercator
             from bluecarbon.features import S2_BANDS
-            from bluecarbon.predict import predict_array
             from bluecarbon.report import scene_report
             from bluecarbon.viz import class_rgba, true_color
 
@@ -713,7 +749,8 @@ with tab_analyze:
                 st.error(f"That box is {km2:,.0f} km². Please draw one under {MAX_AREA_KM2} km².")
                 st.stop()
             init_gee(sa)
-            model, norm, ck = get_model()
+            predictor = get_model()
+            ck = predictor.meta
             with st.status("Running pipeline…", expanded=True) as status:
                 tmp = Path(tempfile.mkdtemp())
                 region = gee.bbox_geometry(bbox)
@@ -728,7 +765,7 @@ with tab_analyze:
                 st.write("Segmenting habitats…")
                 with rasterio.open(tmp / "image.tif") as src:
                     bands, prof = src.read(), src.profile
-                cls, _ = predict_array(model, norm, bands, tile=CFG.predict.tile, overlap=CFG.predict.overlap)
+                cls, _ = predictor.predict(bands, CFG.predict.tile, CFG.predict.overlap)
                 prof.update(count=1, dtype="uint8", nodata=255)
                 with rasterio.open(tmp / "pred.tif", "w", **prof) as dst:
                     dst.write(cls, 1)
@@ -743,7 +780,7 @@ with tab_analyze:
                 "bluecarbon": rgba_uri(class_rgba(mc[0], 220, [KEY_TO_ID[k] for k in BLUE_CARBON_KEYS])),
                 "falsecolor": rgba_uri(true_color(mb, rgb_bands=("B8", "B4", "B3"), gamma=1.0)),
             }
-            live_meta = {"title": "Your area", "model": {**ck.get("extra", {}), "arch": ck["arch"],
+            live_meta = {"title": "Your area", "model": {**ck.get("extra", {}), "arch": ck["arch"], "kind": ck["kind"],
                                                          "encoder": ck["encoder"], "test": ck["metrics"].get("test")}}
             st.session_state["live"] = {"meta": live_meta, "report": rep, "bounds": bnds, "layers": layers,
                                         "rgb": rgba_uri(true_color(mb)), "tif": (tmp / "pred.tif").read_bytes()}

@@ -58,3 +58,23 @@ def test_end_to_end(tmp_path):
     assert meta["kind"] == "single" and (out / "rgb.png").exists() and (out / "classes.png").exists()
     (s, w), (n, e) = meta["bounds"]
     assert s < n and w < e
+
+
+def test_spectral_model(tmp_path):
+    from bluecarbon.predictors import load_predictor, model_card
+    from bluecarbon.spectral import train_spectral
+
+    recs = []
+    for i, split in enumerate(["train", "train", "val", "test"]):
+        d = tmp_path / f"site{i}"
+        d.mkdir()
+        make_scene(d / "image.tif", d / "label.tif", size=256, seed=i)
+        recs += make_chips(d / "image.tif", d / "label.tif", tmp_path / "chips", f"site{i}", size=128, stride=128,
+                           force_split=split)
+    res = train_spectral(recs, tmp_path / "m", per_class_per_chip=200, n_estimators=40, log=lambda *_: None)
+    assert res["test"]["mIoU"] > 0.8  # synthetic classes are spectrally separable
+    pr = load_predictor(tmp_path / "m" / "spectral.json")
+    with rasterio.open(tmp_path / "site3" / "image.tif") as s:
+        cls, conf = pr.predict(s.read())
+    assert cls.shape == (256, 256) and conf.max() <= 1.0
+    assert model_card(tmp_path / "m" / "spectral.json")["kind"] == "spectral-lgbm"

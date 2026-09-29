@@ -27,8 +27,8 @@ draw an area ─► Sentinel-2 composite ─► U-Net segmentation ─► error-
   hand for a single bay.
 - **Evaluation that can't cheat.** Chips never overlap, whole 5 km blocks go to a single split, and two
   entire estuaries are held out for testing. Metrics are per-class IoU/F1, not headline pixel accuracy.
-- **Modern segmentation.** U-Net / ResNet-34 (`segmentation-models-pytorch`), 14-channel spectral input,
-  Dice + weighted cross-entropy, mixed precision, overlap-blended inference with test-time augmentation.
+- **Two model families, best one wins.** A spectral LightGBM model with water-column features and a U-Net /
+  ResNet-34. `bluecarbon train --kind both` trains both and keeps whichever scores higher on the blue carbon classes.
 - **Honest carbon numbers.** Areas are corrected for map bias with the Olofsson et al. (2014) estimator,
   and IPCC Tier 1 coefficients are run through Monte Carlo sampling to give 90% intervals. Credit value
   is based on sequestration, not standing stock.
@@ -40,19 +40,19 @@ draw an area ─► Sentinel-2 composite ─► U-Net segmentation ─► error-
 ## Results
 
 ### Pilot (shipping in the demo today)
-The pilot model is trained only on the original hand-labelled Mission Bay scene and evaluated with
-leave-one-block-out **spatial** cross-validation:
+The pilot is trained on the original hand-labelled Mission Bay scene and evaluated with
+leave-one-block-out **spatial** cross-validation, so every score comes from an area the model never saw.
+Switching from a U-Net to a spectral gradient-boosted model with water-column features raised salt
+marsh from 0.13 to 0.72 IoU and seagrass from 0.00 to 0.52 ([`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md)).
 
-| Class | IoU | F1 |
+| Class | U-Net pilot | **Spectral model (shipped)** |
 |---|---:|---:|
-| Open water | 0.92 | 0.96 |
-| Other land | 0.95 | 0.97 |
-| Salt marsh | 0.13 | 0.23 |
-| Seagrass | 0.00 | 0.00 |
-| **mIoU / macro-F1** | **0.50** | **0.54** |
+| Salt marsh | 0.13 | **0.72** |
+| Seagrass | 0.00 | **0.52** |
+| Open water | 0.92 | **0.99** |
+| Other land | 0.95 | **0.98** |
+| **mIoU** | 0.50 | **0.80** |
 
-Overall pixel accuracy is **94%**, and salt marsh is still mostly missed. A single bay doesn't have
-enough blue carbon pixels to learn from, which is why v2 is built around multi-site training data.
 [`docs/AUDIT.md`](docs/AUDIT.md) covers what v1 got wrong and how v2 fixes it.
 
 ### v2 multi-site model
@@ -93,6 +93,8 @@ src/bluecarbon/
   labels.py     boundary buffering, survey-polygon overrides
   tiling.py     non-overlapping chips, spatial-block splits
   model.py      smp models + self-describing checkpoints
+  spectral.py   LightGBM spectral-context model (water-column ratios, 30/90 m context)
+  predictors.py one interface over both model types
   train.py      Dice+CE, class weighting, AMP, early stopping, held-out evaluation
   predict.py    overlap-blended sliding-window inference + TTA
   metrics.py    IoU / F1 / kappa, Olofsson error-adjusted area

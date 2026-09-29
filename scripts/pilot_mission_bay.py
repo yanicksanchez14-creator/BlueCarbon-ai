@@ -1,4 +1,4 @@
-"""Reproduce the pilot model shipped in models/pilot_mission_bay_2018.pt.
+"""Reproduce the pilot model shipped in runs/pilot/pilot_unet_mission_bay_2018.pt.
 
 Data: data/pilot/ holds the 2018 Mission Bay Sentinel-2 composite and the original 2025
 QGIS hand labels, converted to the v2 class schema (see docs/AUDIT.md for the conversion).
@@ -63,7 +63,7 @@ def main():
     train(cfg, recs, OUT / "final", log=print)
     model, norm, ck = load_checkpoint(OUT / "final" / "model.pt")
     model = model.half()  # halves the file size; weights are cast back to fp32 on load
-    save_checkpoint(Path("models/pilot_mission_bay_2018.pt"), model, ck["arch"], ck["encoder"], norm,
+    save_checkpoint(Path("runs/pilot/pilot_unet_mission_bay_2018.pt"), model, ck["arch"], ck["encoder"], norm,
                     {"val": ck["metrics"]["val"], "test": cv["pooled_test"], "test_confusion": cv["pooled_confusion"]},
                     {"name": "pilot-mission-bay-2018", "pilot": True, "evaluation": cv["protocol"],
                      "training_data": "Mission Bay 2018 Sentinel-2 composite, 2025 QGIS hand labels "

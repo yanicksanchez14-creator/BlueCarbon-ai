@@ -58,12 +58,12 @@ def export_scene(scene_dir: str | Path, out_dir: str | Path, title: str, cfg: Co
     out.mkdir(parents=True, exist_ok=True)
     cm, model_info = None, None
     if model_path:
-        import torch
+        from .predictors import model_card
 
-        ck = torch.load(model_path, map_location="cpu", weights_only=False)
+        ck = model_card(model_path)
         cm = ck.get("metrics", {}).get("test_confusion")
-        model_info = {"arch": ck["arch"], "encoder": ck["encoder"], "test": ck.get("metrics", {}).get("test"),
-                      **ck.get("extra", {})}
+        model_info = {"arch": ck["arch"], "encoder": ck["encoder"], "kind": ck["kind"],
+                      "test": ck.get("metrics", {}).get("test"), **ck.get("extra", {})}
     meta = {"title": title, "description": description, "classes": [c.__dict__ for c in CLASSES],
             "model": model_info}
     if (d / "t0_pred.tif").exists():
