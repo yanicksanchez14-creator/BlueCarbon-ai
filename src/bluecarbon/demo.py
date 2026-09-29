@@ -45,6 +45,7 @@ def _render_period(d: Path, prefix: str, out: Path, tag: str) -> tuple[list, np.
         n = src.count
     bands, bounds = _to_mercator(img, list(range(1, n + 1)), Resampling.bilinear, 0)
     save_png(true_color(bands), out / f"rgb{tag}.png")
+    save_png(true_color(bands, rgb_bands=("B8", "B4", "B3"), gamma=1.0), out / f"falsecolor{tag}.png")
     cls, _ = _to_mercator(pred, [1], Resampling.nearest, IGNORE_INDEX)
     save_png(class_rgba(cls[0], 200), out / f"classes{tag}.png")
     save_png(class_rgba(cls[0], 220, [KEY_TO_ID[k] for k in BLUE_CARBON_KEYS]), out / f"bluecarbon{tag}.png")

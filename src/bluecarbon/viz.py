@@ -8,10 +8,15 @@ from .features import REFLECTANCE_SCALE, S2_BANDS
 from .schema import CLASSES, IGNORE_INDEX, palette_rgb
 
 
-def true_color(bands: np.ndarray, band_names: list[str] | None = None, p=(2, 98), gamma: float = 0.9) -> np.ndarray:
-    """(C,H,W) S2 bands -> (H,W,4) uint8 RGBA with a percentile stretch."""
+def true_color(bands: np.ndarray, band_names: list[str] | None = None, p=(2, 98), gamma: float = 0.9,
+               rgb_bands: tuple[str, str, str] = ("B4", "B3", "B2")) -> np.ndarray:
+    """(C,H,W) S2 bands -> (H,W,4) uint8 RGBA with a percentile stretch.
+
+    rgb_bands=("B8", "B4", "B3") gives the classic false-color infrared view, where healthy
+    vegetation (marsh, mangrove) shows up bright red.
+    """
     names = band_names or S2_BANDS
-    idx = [names.index(b) for b in ("B4", "B3", "B2")]
+    idx = [names.index(b) for b in rgb_bands]
     rgb = np.nan_to_num(bands[idx].astype(np.float32))
     if rgb.max() > 2:
         rgb = rgb / REFLECTANCE_SCALE

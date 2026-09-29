@@ -16,17 +16,17 @@ class HabitatClass:
     id: int
     key: str
     name: str
-    color: str  # hex, used for maps and charts
+    color: str  # hex, used for maps and charts (validated for CVD separation; 'other' is a neutral)
     blue_carbon: bool
 
 
 CLASSES: tuple[HabitatClass, ...] = (
-    HabitatClass(0, "water", "Open water", "#2b6cb0", False),
-    HabitatClass(1, "mangrove", "Mangrove", "#1b7f3b", True),
-    HabitatClass(2, "saltmarsh", "Salt marsh", "#9acd32", True),
-    HabitatClass(3, "seagrass", "Seagrass", "#20b2aa", True),
-    HabitatClass(4, "tidal_flat", "Tidal flat / bare", "#d2b48c", False),
-    HabitatClass(5, "other_land", "Other land", "#9e9e9e", False),
+    HabitatClass(0, "water", "Open water", "#1f5fbf", False),
+    HabitatClass(1, "mangrove", "Mangrove", "#0b7a3e", True),
+    HabitatClass(2, "saltmarsh", "Salt marsh", "#9bb52a", True),
+    HabitatClass(3, "seagrass", "Seagrass", "#14a3a0", True),
+    HabitatClass(4, "tidal_flat", "Tidal flat / bare", "#c07a2c", False),
+    HabitatClass(5, "other_land", "Other land", "#8b9199", False),
 )
 
 N_CLASSES = len(CLASSES)

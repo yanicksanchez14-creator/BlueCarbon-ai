@@ -1,4 +1,4 @@
-# 🌊 BlueCarbon-AI
+# BlueCarbon-AI
 
 [![CI](https://github.com/yanicksanchez14-creator/bluecarbon-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/yanicksanchez14-creator/bluecarbon-ai/actions/workflows/ci.yml)
 [![Live demo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://bluecarbon-ai.streamlit.app)
