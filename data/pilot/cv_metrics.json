@@ -1,0 +1,100 @@
+{
+  "pooled_test": {
+    "overall_accuracy": 0.9399,
+    "kappa": 0.8857,
+    "mIoU": 0.5,
+    "macro_f1": 0.5408,
+    "iou": {
+      "water": 0.9219,
+      "mangrove": null,
+      "saltmarsh": 0.1305,
+      "seagrass": 0.0,
+      "tidal_flat": null,
+      "other_land": 0.9477
+    },
+    "f1": {
+      "water": 0.9594,
+      "mangrove": null,
+      "saltmarsh": 0.2308,
+      "seagrass": 0.0,
+      "tidal_flat": null,
+      "other_land": 0.9732
+    },
+    "precision": {
+      "water": 0.9791,
+      "mangrove": null,
+      "saltmarsh": 0.1744,
+      "seagrass": 0.0,
+      "tidal_flat": null,
+      "other_land": 0.979
+    },
+    "recall": {
+      "water": 0.9404,
+      "mangrove": null,
+      "saltmarsh": 0.3413,
+      "seagrass": 0.0,
+      "tidal_flat": null,
+      "other_land": 0.9674
+    },
+    "support_px": {
+      "water": 223359,
+      "mangrove": 0,
+      "saltmarsh": 6284,
+      "seagrass": 4158,
+      "tidal_flat": 0,
+      "other_land": 274991
+    }
+  },
+  "pooled_confusion": [
+    [
+      210055,
+      9,
+      1522,
+      9903,
+      3,
+      1867
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      391,
+      14,
+      2145,
+      0,
+      0,
+      3734
+    ],
+    [
+      4028,
+      0,
+      20,
+      0,
+      0,
+      110
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      73,
+      16,
+      8615,
+      257,
+      0,
+      266030
+    ]
+  ],
+  "folds": 4,
+  "protocol": "leave-one-2.56km-block-out spatial CV, Mission Bay 2018, 96px chips"
+}

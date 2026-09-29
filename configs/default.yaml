@@ -1,0 +1,75 @@
+# BlueCarbon-AI v2 default configuration.
+# Every stage (fetch -> labels -> chips -> train -> predict -> report) reads this file.
+
+project: bluecarbon-ai            # Google Earth Engine cloud project id
+workdir: runs/default             # all outputs go here
+
+imagery:
+  # Seasonal median of cloud-masked Sentinel-2 L2A (harmonized) surface reflectance.
+  collection: COPERNICUS/S2_SR_HARMONIZED
+  cloud_score_collection: GOOGLE/CLOUD_SCORE_PLUS/V1/S2_HARMONIZED
+  cloud_score_band: cs_cdf
+  clear_threshold: 0.60           # Cloud Score+ cs_cdf >= threshold is kept
+  scale_m: 10
+  tile_px: 512                    # computePixels request size (keeps requests < 48 MB)
+
+labels:
+  # Reference labels are fused from published global products (priority order: last wins).
+  # All asset ids are configurable in case a dataset version changes.
+  worldcover: ESA/WorldCover/v200             # 10 m land cover, 2021 (mangroves = 95)
+  intertidal: UQ/murray/Intertidal/v1_1/global_intertidal  # tidal flats (Murray et al. 2019)
+  reef_habitat: ACA/reef_habitat/v2_0         # Allen Coral Atlas benthic (seagrass = 14), tropics
+  seagrass_value: 14
+  # Herbaceous wetland (WorldCover 90) counts as salt marsh only below this elevation (m, NASADEM)
+  # and within this distance of the coast / tidal zone.
+  marsh_max_elev_m: 5
+  dem: NASA/NASADEM_HGT/001
+  # Optional user polygons (GeoPackage/GeoJSON with an integer `class_id` column following
+  # src/bluecarbon/schema.py). These override everything else, e.g. local eelgrass surveys.
+  overrides: null
+  # Pixels within this many pixels of a class boundary are set to ignore (label noise buffer).
+  boundary_ignore_px: 1
+
+chips:
+  size: 256
+  stride: 256                     # no overlap -> no leakage between chips
+  min_labeled_frac: 0.2
+  block_km: 5                     # spatial blocks for train/val/test assignment
+  split: [0.7, 0.15, 0.15]
+  seed: 42
+
+model:
+  arch: Unet                      # any segmentation_models_pytorch architecture (Unet, UnetPlusPlus, DeepLabV3Plus, ...)
+  encoder: resnet34
+  encoder_weights: imagenet       # set null to train from scratch / offline
+
+train:
+  epochs: 60
+  batch_size: 16
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  dice_weight: 0.5
+  class_weighting: sqrt_inverse   # none | inverse | sqrt_inverse
+  amp: true
+  num_workers: 2
+  patience: 12
+  device: auto
+
+predict:
+  tile: 256
+  overlap: 64
+  tta: true
+
+carbon:
+  # IPCC (2013) Wetlands Supplement, Tier 1 defaults.
+  # soil: organic carbon stock to 1 m depth, t C / ha  [low, mode, high]
+  # biomass: above + below ground living biomass carbon, t C / ha
+  # accumulation: soil carbon accumulation rate, t C / ha / yr
+  # Verify against Tables 4.4, 4.11 and 4.12 before citing numbers in a publication.
+  co2_per_c: 3.667
+  classes:
+    mangrove:  {soil: [436, 471, 510], biomass: [25, 42, 80], accumulation: [1.3, 1.62, 2.0]}
+    saltmarsh: {soil: [254, 255, 297], biomass: [2, 5, 10],   accumulation: [0.7, 0.91, 1.1]}
+    seagrass:  {soil: [84, 108, 139],  biomass: [0.5, 1, 2],  accumulation: [0.2, 0.43, 0.7]}
+  price_usd_per_tco2e: [15, 25, 40]   # indicative voluntary-market range, not a valuation
+  monte_carlo: 5000

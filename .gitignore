@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+runs/
+*.npz
+.streamlit/secrets.toml
+*.json.key
+service-account*.json
+.DS_Store
+Thumbs.db

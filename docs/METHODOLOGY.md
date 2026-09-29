@@ -1,0 +1,69 @@
+## Pipeline
+
+```
+Sentinel-2 L2A ──► Cloud Score+ mask ──► seasonal median ──► 10 bands + 4 indices ─┐
+                                                                                  ├─► U-Net ──► habitat map ──► area ──► carbon
+ESA WorldCover ─┬─► fused reference labels ──► boundary buffer ──► chips ─────────┘      (±TTA)     (error-      (Tier 1,
+Murray tidal    │                                                  (spatial-block split)            adjusted)    Monte Carlo)
+Allen Coral Atlas┘
+```
+
+**Imagery.** Sentinel-2 surface reflectance (`COPERNICUS/S2_SR_HARMONIZED`), masked with Google's
+Cloud Score+ (`cs_cdf ≥ 0.6`), reduced to a per-pixel median over the chosen season. Bands B2–B8A,
+B11, B12 at 10 m in the local UTM zone. The model also gets NDVI, NDWI, MNDWI and NDMI.
+
+**Classes.** Open water · mangrove · salt marsh · seagrass · tidal flat · other land. `255` means
+*no label* and is never trained on or scored.
+
+**Reference labels.** These are fused from published global products rather than drawn by hand
+or made with index thresholds:
+
+| Class | Source |
+|---|---|
+| Water, other land | ESA WorldCover 2021 (10 m) |
+| Mangrove | ESA WorldCover class 95 |
+| Salt marsh | WorldCover herbaceous wetland (90) below 5 m elevation (NASADEM) |
+| Tidal flat | Murray et al. global intertidal change |
+| Seagrass | Allen Coral Atlas benthic map (tropics); local surveys can be added as polygon overrides |
+
+Pixels within 1 px of a class boundary are ignored, because edges are where global products are
+least reliable.
+
+**Splitting.** Chips don't overlap. Whole 5 km blocks go to train, val or test, and two sites
+(Moreton Bay, Tampa Bay) are held out entirely. That tests geographic generalization, not memorization
+of neighbouring pixels.
+
+**Model.** A U-Net with a ResNet-34 encoder from `segmentation-models-pytorch`, a 14-channel input
+stem, and cross-entropy plus Dice loss with square-root inverse-frequency class weights.
+Training uses AdamW with one-cycle LR, mixed precision and early stopping on validation mIoU.
+Inference uses overlapping tiles blended with a Hann window, plus flip test-time augmentation.
+
+**Metrics.** Per-class IoU, F1, precision and recall, plus mIoU, macro-F1, overall accuracy and
+Cohen's κ, all computed on held-out test chips. Overall accuracy is reported but never headlined:
+a map that is 70% water can score 90% accuracy while missing every salt marsh pixel.
+
+**Area estimation.** Mapped pixel counts are biased. Reported areas are *error-adjusted* with the
+stratified estimator of Olofsson et al. (2014), using the model's held-out confusion matrix. The
+confidence intervals treat pixels as independent samples, so they understate the true uncertainty.
+A design-based accuracy assessment with independent reference points would tighten this.
+
+**Carbon.** IPCC 2013 Wetlands Supplement Tier 1 defaults for soil organic carbon (to 1 m), living
+biomass and soil carbon accumulation, per habitat. Each coefficient is sampled from a triangular
+distribution (5,000 Monte Carlo draws), together with the area uncertainty, and results are reported
+as the mean and 90% interval. The indicative credit value uses **annual sequestration only**, since
+standing stock is not creditable. Tier 1 values are global averages; any real project needs
+site-measured stocks.
+
+### Limitations
+- Seagrass is spectrally hard to separate from water, and global seagrass labels only cover tropical
+  reefs. Temperate seagrass needs local survey polygons.
+- Tides change what the satellite sees in intertidal zones. A median composite averages over tides.
+- The global label products have their own errors, so the model learns those errors too.
+
+### References
+- IPCC (2014). *2013 Supplement to the 2006 IPCC Guidelines for National GHG Inventories: Wetlands*, Ch. 4.
+- Olofsson, P. et al. (2014). Good practices for estimating area and assessing accuracy of land change. *RSE* 148.
+- Zanaga, D. et al. (2022). ESA WorldCover 10 m 2021 v200.
+- Murray, N. J. et al. (2022). High-resolution mapping of losses and gains of Earth's tidal wetlands. *Science* 376.
+- Allen Coral Atlas (2022). Imagery, maps and monitoring of the world's tropical coral reefs.
+- Pasquarella, V. et al. (2023). Cloud Score+: comprehensive cloud and cloud-shadow detection for Sentinel-2.
