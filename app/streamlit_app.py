@@ -28,8 +28,10 @@ sys.path.insert(0, str(ROOT / "src"))
 from bluecarbon.config import load_config  # noqa: E402
 from bluecarbon.schema import BLUE_CARBON_KEYS, CLASSES  # noqa: E402
 
-DEMO_DIR = ROOT / "demo_data"
-DEFAULT_MODEL = ROOT / "models" / "pilot_spectral_mission_bay_2018.json"
+DEMO_DIR = Path(os.environ.get("BLUECARBON_DEMO_DIR", ROOT / "demo_data"))
+_CURRENT = ROOT / "models" / "current.txt"
+DEFAULT_MODEL = ROOT / "models" / (_CURRENT.read_text().strip() if _CURRENT.exists()
+                                   else "pilot_spectral_mission_bay_2018.json")
 REPO = "https://github.com/yanicksanchez14-creator/bluecarbon-ai"
 MAX_AREA_KM2 = 60
 ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -217,7 +219,14 @@ div[data-testid="stExpander"]{border:1px solid var(--line); border-radius:var(--
 .bc-rel-md{background:#fff6e8; color:#8a5a00; border-color:#f3d9a8;}
 .bc-rel-lo{background:#fdecec; color:#9b2c2c; border-color:#f3c4c4;}
 .bc-rel-na{background:#f1f4f5; color:#6a7a84; border-color:#e0e6e9;}
-.bc-found{margin-bottom:.8rem;} .bc-found p{margin:0; font-size:1.02rem; line-height:1.7; color:var(--ink);}
+.bc-found{margin-bottom:.8rem;}
+.bc-up{color:#12683b; font-weight:600;} .bc-down{color:#9b2c2c; font-weight:600;}
+.bc-status{display:inline-block; font-size:.72rem; font-weight:600; padding:2px 10px; border-radius:999px;
+  margin-bottom:.45rem; border:1px solid;}
+.bc-st-held{background:#e6f5f3; color:#0e5a67; border-color:#cfe9e5;}
+.bc-st-change{background:#eef2ff; color:#3730a3; border-color:#c7d2fe;}
+.bc-st-train{background:#f1f4f5; color:#52616b; border-color:#e0e6e9;}
+.bc-maplegend i{box-sizing:border-box;} .bc-found p{margin:0; font-size:1.02rem; line-height:1.7; color:var(--ink);}
 .bc-summary ul{margin:.5rem 0 0; padding-left:1.1rem;}
 .bc-summary li{font-size:.95rem; line-height:1.65; color:var(--ink); margin:.2rem 0;}
 .bc-h2{font-size:1.15rem; font-weight:700; margin:2rem 0 .25rem; color:var(--ink);}
@@ -384,7 +393,7 @@ T_CARS = "Based on the US EPA figure of about 4.6 tonnes of CO₂ per typical pa
 
 def car_equiv(tco2: float) -> str:
     n = tco2 / CAR_TCO2_PER_YR
-    return fmt(n) if n >= 10 else f"{n:,.1f}"
+    return fmt(round(n)) if n >= 10 else f"{n:,.1f}"
 
 
 def reliability(iou: float | None) -> tuple[str, str]:
@@ -597,20 +606,46 @@ def section(title: str, sub: str = "") -> None:
                 unsafe_allow_html=True)
 
 
-def render_results(meta: dict, report: dict, map_fn, side_header: str = "") -> None:
+CHANGE_VIEWS = {"After": "classes_t1", "Before": "classes_t0", "What changed": "change", "Satellite": None,
+                "False color": "falsecolor_t1"}
+
+
+def change_hints(meta: dict) -> dict:
+    p = meta.get("periods") or {}
+    t0, t1 = p.get("t0", "the earlier date"), p.get("t1", "the later date")
+    return {
+        "After": f"Habitats in {t1}.",
+        "Before": f"Habitats in {t0}.",
+        "What changed": f"Green = blue carbon habitat that appeared between {t0} and {t1}. Red = habitat that was lost.",
+        "Satellite": f"The cloud-free satellite photo from {t1}, in natural color.",
+        "False color": HINTS["False color"],
+    }
+
+
+def render_results(meta: dict, report: dict, map_fn, side_header: str = "", views: dict | None = None,
+                   hints: dict | None = None, after_map=None) -> None:
+    views, hints = views or VIEWS, hints or HINTS
+    default = next(iter(views))
     c1, c2 = st.columns([3, 1])
-    view = c1.segmented_control("Map layer", list(VIEWS), default="Habitats", key=f"view_{meta['title']}") or "Habitats"
+    view = c1.segmented_control("Map layer", list(views), default=default, key=f"view_{meta['title']}") or default
     opacity = c2.slider("Color overlay strength", 0.0, 1.0, 0.8, 0.05, key=f"op_{meta['title']}")
     left, right = st.columns([0.64, 0.36], gap="large")
     with left:
         map_fn(view, opacity)
-        st.markdown(f'<div class="bc-hint">{HINTS[view]}</div>', unsafe_allow_html=True)
+        legend = ""
+        if views[view] == "change":
+            legend = ('<div class="bc-maplegend"><span><i style="background:#22c55e"></i>Blue carbon gained</span>'
+                      '<span><i style="background:#ef4444"></i>Blue carbon lost</span></div>')
+        st.markdown(legend + f'<div class="bc-hint">{hints[view]}</div>', unsafe_allow_html=True)
     with right:
         if side_header:
             st.markdown(side_header, unsafe_allow_html=True)
         st.markdown(f'<div class="bc-section">In this image{tip("Area of each class the AI found, corrected for its known mistakes. " + T_ADJ)}</div>',
                     unsafe_allow_html=True)
         st.markdown(in_image_html(report, view == "Blue carbon only"), unsafe_allow_html=True)
+
+    if after_map:
+        after_map()
 
     section("Blue carbon habitats", "The three coastal ecosystems that store large amounts of carbon, and how much of each the AI found here.")
     st.markdown(habitat_cards(report), unsafe_allow_html=True)
@@ -635,34 +670,134 @@ def render_results(meta: dict, report: dict, map_fn, side_header: str = "") -> N
     st.markdown(summary_html(meta, report), unsafe_allow_html=True)
 
 
+def change_section(meta: dict) -> None:
+    p = meta.get("periods") or {}
+    t0, t1 = p.get("t0", "Before"), p.get("t1", "After")
+    a0 = best_areas(meta["t0"])
+    a1 = best_areas(meta["t1"])
+    rows, sentences = [], []
+    for k in BLUE_CARBON_KEYS:
+        d = a1[k] - a0[k]
+        if a0[k] < 0.05 and a1[k] < 0.05:
+            continue
+        pct = f"{100 * d / a0[k]:+.0f}%" if a0[k] >= 0.05 else "new"
+        cls = "bc-up" if d > 0 else "bc-down" if d < 0 else ""
+        rows.append(f'<tr><td><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;'
+                    f'background:{CLS[k].color};margin-right:8px"></span>{CLS[k].name}</td>'
+                    f'<td class="num">{fmt(a0[k], 1)}</td><td class="num">{fmt(a1[k], 1)}</td>'
+                    f'<td class="num {cls}">{"+" if d > 0 else ""}{fmt(d, 1)} ha ({pct})</td></tr>')
+        if abs(d) >= 0.5:
+            sentences.append(f"{CLS[k].name.lower()} {'grew' if d > 0 else 'shrank'} by {fmt(abs(d), 1)} hectares")
+    s0 = meta["t0"]["carbon"]["total_stock_tCO2e"]["mean"]
+    s1 = meta["t1"]["carbon"]["total_stock_tCO2e"]["mean"]
+    net = s1 - s0
+    lead = (f"Between {t0} and {t1}, " + ", ".join(sentences) + ". " if sentences
+            else f"Blue carbon habitat stayed roughly the same between {t0} and {t1}. ")
+    lead += (f"That {'adds' if net >= 0 else 'removes'} about <b>{fmt(abs(net))} tonnes of CO₂</b> "
+             f"{'to' if net >= 0 else 'from'} the carbon stored at this site.")
+    section("What changed", f"Blue carbon habitat in {t0} compared with {t1}.")
+    st.markdown(f'<div class="bc-card bc-found"><p>{lead}</p></div>', unsafe_allow_html=True)
+    if rows:
+        st.markdown('<table class="bc-table"><thead><tr><th>Habitat</th>'
+                    f'<th style="text-align:right">{t0} (ha)</th><th style="text-align:right">{t1} (ha)</th>'
+                    '<th style="text-align:right">Change</th></tr></thead><tbody>' + "".join(rows) + "</tbody></table>",
+                    unsafe_allow_html=True)
+    st.markdown('<div class="bc-note" style="margin-top:.5rem">Small changes can come from differences in tide, '
+                "season or image quality between the two dates rather than real habitat change.</div>",
+                unsafe_allow_html=True)
+
+
+@st.cache_data
+def site_metas() -> dict[str, dict]:
+    return {t: json.loads((d / "meta.json").read_text()) for t, d in list_sites().items()}
+
+
+def site_status(meta: dict) -> tuple[str, str]:
+    if meta.get("kind") == "change":
+        return "Change over time", "bc-st-change"
+    if meta.get("held_out"):
+        return "Never seen in training", "bc-st-held"
+    if meta.get("held_out") is False:
+        return "Training site", "bc-st-train"
+    return "", ""
+
+
+def sites_overview(metas: dict[str, dict]) -> None:
+    m = folium.Map(location=[20, -30], zoom_start=2, tiles=None, min_zoom=1, world_copy_jump=True,
+                   scrollWheelZoom=False)
+    folium.TileLayer(ESRI, attr=ESRI_ATTR).add_to(m)
+    for t, meta in metas.items():
+        (s, w), (n, e) = meta["bounds"]
+        label, _ = site_status(meta)
+        color = "#14a3a0" if meta.get("held_out") or meta.get("kind") == "change" else "#f5f7f8"
+        folium.CircleMarker([(s + n) / 2, (w + e) / 2], radius=7, color="#083744", weight=2, fill=True,
+                            fill_color=color, fill_opacity=1,
+                            tooltip=f"{t}" + (f" · {label}" if label else "")).add_to(m)
+    st_folium(m, height=300, use_container_width=True, returned_objects=[], key="overview")
+    st.markdown('<div class="bc-maplegend"><span><i style="background:#14a3a0;border:2px solid #083744"></i>'
+                'Never seen in training</span><span><i style="background:#f5f7f8;border:2px solid #083744"></i>'
+                "Training site</span></div>", unsafe_allow_html=True)
+
+
 with tab_explore:
+    metas = site_metas()
     sites = list_sites()
     if not sites:
         st.warning("No demo data found in demo_data/.")
     else:
-        c1, _ = st.columns([1, 2], gap="large")
-        title = c1.selectbox("Site", list(sites))
+        order = sorted(metas, key=lambda t: (0 if metas[t].get("kind") == "change" else
+                                              1 if metas[t].get("held_out") else 2 if "held_out" not in metas[t] else 3, t))
+        if len(metas) > 1:
+            section(f"{len(metas)} coastal sites", "Pick a site below. Teal sites were never shown to the AI during "
+                                                   "training, so they are the fairest test of how well it works.")
+            sites_overview(metas)
+        c1, _ = st.columns([1.5, 1.5], gap="large")
+
+        def label(t):
+            lab, _ = site_status(metas[t])
+            return f"{t}  ·  {lab}" if lab else t
+
+        title = c1.selectbox("Site", order, format_func=label)
         d = sites[title]
-        meta = json.loads((d / "meta.json").read_text())
+        meta = metas[title]
         report = meta["report"] if meta["kind"] == "single" else meta["t1"]
         where = " · ".join(x for x in [meta.get("region"), meta.get("period")] if x)
-        side = (f'<div class="bc-site"><h3>{meta["title"]}</h3><div class="meta">{where}</div>'
+        lab, cls = site_status(meta)
+        badge = f'<span class="bc-status {cls}">{lab}</span>' if lab else ""
+        side = (f'<div class="bc-site">{badge}<h3>{meta["title"]}</h3><div class="meta">{where}</div>'
                 f'<p>{meta.get("description", "")}</p></div>')
-        tag = "" if meta["kind"] == "single" else "_t1"
 
-        def demo_map(view, opacity):
-            m = make_map(meta["bounds"])
-            if view == "False color":
-                overlay(m, png_uri(d / f"falsecolor{tag}.png"), meta["bounds"], 1.0)
-            else:
-                overlay(m, png_uri(d / f"rgb{tag}.png"), meta["bounds"], 1.0)
-                if VIEWS[view]:
-                    overlay(m, png_uri(d / f"{VIEWS[view]}{tag}.png"), meta["bounds"], opacity)
-            outline(m, meta["bounds"])
-            st_folium(m, height=560, use_container_width=True, returned_objects=[],
-                      key=f"map_{title}_{view}_{opacity}")
+        if meta["kind"] == "change":
+            def demo_map(view, opacity):
+                m = make_map(meta["bounds"])
+                key = CHANGE_VIEWS[view]
+                if view == "False color":
+                    overlay(m, png_uri(d / "falsecolor_t1.png"), meta["bounds"], 1.0)
+                else:
+                    base = "rgb_t0.png" if view == "Before" else "rgb_t1.png"
+                    overlay(m, png_uri(d / base), meta["bounds"], 1.0)
+                    if key:
+                        overlay(m, png_uri(d / f"{key}.png"), meta["bounds"], opacity)
+                outline(m, meta["bounds"])
+                st_folium(m, height=560, use_container_width=True, returned_objects=[],
+                          key=f"map_{title}_{view}_{opacity}")
 
-        render_results(meta, report, demo_map, side)
+            render_results(meta, report, demo_map, side, CHANGE_VIEWS, change_hints(meta),
+                           after_map=lambda: change_section(meta))
+        else:
+            def demo_map(view, opacity):
+                m = make_map(meta["bounds"])
+                if view == "False color":
+                    overlay(m, png_uri(d / "falsecolor.png"), meta["bounds"], 1.0)
+                else:
+                    overlay(m, png_uri(d / "rgb.png"), meta["bounds"], 1.0)
+                    if VIEWS[view]:
+                        overlay(m, png_uri(d / f"{VIEWS[view]}.png"), meta["bounds"], opacity)
+                outline(m, meta["bounds"])
+                st_folium(m, height=560, use_container_width=True, returned_objects=[],
+                          key=f"map_{title}_{view}_{opacity}")
+
+            render_results(meta, report, demo_map, side)
 
 
 # ----------------------------------------------------------------------------- analyze
