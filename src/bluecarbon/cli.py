@@ -117,6 +117,8 @@ def train(config: str = CfgOpt, kind: str = typer.Option("both", help="spectral 
         scores["unet"] = (_blue_score(res.get("val")), out / "model.pt")
     best = max(scores, key=lambda k: scores[k][0])
     src = scores[best][1]
+    for stale in out.glob("best.*"):  # never leave a previous run's winner behind
+        stale.unlink()
     shutil.copy(src, out / ("best" + src.suffix))
     (out / "best.txt").write_text(f"{best} {src.name} blue-carbon val IoU {scores[best][0]:.3f}\n")
     typer.echo({k: round(v[0], 3) for k, v in scores.items()})

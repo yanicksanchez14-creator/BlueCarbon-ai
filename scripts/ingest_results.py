@@ -193,7 +193,8 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as tmp:
         if a.results:
             zipfile.ZipFile(a.results).extractall(tmp)
-            a.model = next(p for p in Path(tmp).rglob("best.*") if p.suffix != ".txt")
+            best_txt = next(Path(tmp).rglob("best.txt"))
+            a.model = best_txt.parent / best_txt.read_text().split()[1]
             a.demo = a.results
         if not (a.model and a.demo):
             raise SystemExit("give --results, or both --model and --demo")

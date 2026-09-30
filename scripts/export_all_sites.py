@@ -44,7 +44,7 @@ def run(*args: str) -> None:
 
 
 def main() -> None:
-    model = next(p for p in (WORK / "model").glob("best.*") if p.suffix != ".txt")
+    model = WORK / "model" / (WORK / "model" / "best.txt").read_text().split()[1]
     cfg = yaml.safe_load(Path("configs/sites.yaml").read_text())
     for s in cfg["sites"]:
         d = WORK / "sites" / s["name"]

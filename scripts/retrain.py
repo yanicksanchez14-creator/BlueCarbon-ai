@@ -22,13 +22,23 @@ def run(*args: str) -> None:
     subprocess.run(args, check=True)
 
 
+def best_model() -> Path:
+    """The model named in best.txt (never a stale best.* left over from an earlier run)."""
+    name = (WORK / "model" / "best.txt").read_text().split()[1]
+    return WORK / "model" / name
+
+
 def main() -> None:
-    run("bluecarbon", "fetch", "--labels-only")
-    shutil.rmtree(WORK / "chips", ignore_errors=True)
-    run("bluecarbon", "chips")
-    run("bluecarbon", "train", "--kind", "both")
-    best = next(p for p in (WORK / "model").glob("best.*") if p.suffix != ".txt")
-    print((WORK / "model" / "best.txt").read_text())
+    skip_train = "--skip-train" in sys.argv
+    if not skip_train:
+        run("bluecarbon", "fetch", "--labels-only")
+        shutil.rmtree(WORK / "chips", ignore_errors=True)
+        run("bluecarbon", "chips")
+        for old in (WORK / "model").glob("best.*"):
+            old.unlink()
+        run("bluecarbon", "train", "--kind", "both")
+    best = best_model()
+    print((WORK / "model" / "best.txt").read_text(), "->", best)
 
     run("bluecarbon", "case-study", "-m", str(best))
     scene = WORK / "scenes" / "mission_bay_change"

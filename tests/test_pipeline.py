@@ -124,3 +124,15 @@ def test_ancillary_inputs(tmp_path):
         raise AssertionError("should require ancillary")
     except ValueError:
         pass
+
+
+def test_spectral_strips_match_full(tmp_path):
+    """Strip-wise prediction (used for large scenes) must equal whole-scene prediction."""
+    from bluecarbon.spectral import SpectralModel, sample_pixels
+
+    bands, lab = make_scene(tmp_path / "i.tif", tmp_path / "l.tif", size=300, seed=3)
+    X, y = sample_pixels(bands, lab, 300, np.random.default_rng(0))
+    m = SpectralModel().fit(X, y, n_estimators=10)
+    whole = m.predict_proba(bands)
+    strips = m.predict_proba(bands, strip=64, max_block_px=0)
+    assert np.allclose(whole, strips)

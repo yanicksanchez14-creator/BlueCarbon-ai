@@ -105,13 +105,28 @@ class SpectralModel:
         return self
 
     # ------------------------------------------------------------------ inference
-    def predict_proba(self, bands: np.ndarray, anc: np.ndarray | None = None) -> np.ndarray:
+    def _proba_block(self, bands: np.ndarray, anc: np.ndarray | None) -> np.ndarray:
         x = pixel_features(bands, anc if self.uses_ancillary else None)
         n, h, w = x.shape
         raw = self.booster.predict(x.reshape(n, -1).T).T
         p = np.zeros((N_CLASSES, h * w), np.float32)
         p[: raw.shape[0]] = raw
-        p = p.reshape(N_CLASSES, h, w)
+        return p.reshape(N_CLASSES, h, w)
+
+    def predict_proba(self, bands: np.ndarray, anc: np.ndarray | None = None, strip: int = 512,
+                      max_block_px: int = 2_000_000) -> np.ndarray:
+        """Class probabilities. Large scenes are processed in row strips (with a halo wide enough for the
+        context filters and smoothing) so memory stays bounded."""
+        _, H, W = bands.shape
+        halo = max(CONTEXT_SCALES) // 2 + SMOOTH // 2 + 1
+        if H * W <= max_block_px:
+            p = self._proba_block(bands, anc)
+        else:
+            p = np.zeros((N_CLASSES, H, W), np.float32)
+            for y0 in range(0, H, strip):
+                a, b = max(0, y0 - halo), min(H, y0 + strip + halo)
+                blk = self._proba_block(bands[:, a:b], None if anc is None else anc[:, a:b])
+                p[:, y0 : min(H, y0 + strip)] = blk[:, y0 - a : y0 - a + min(strip, H - y0)]
         if SMOOTH > 1:
             p = np.stack([uniform_filter(c, SMOOTH, mode="reflect") for c in p])
         return p
