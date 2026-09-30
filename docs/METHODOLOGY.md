@@ -12,6 +12,13 @@ Allen Coral Atlas┘
 Cloud Score+ (`cs_cdf ≥ 0.6`), reduced to a per-pixel median over the chosen season. Bands B2–B8A,
 B11, B12 at 10 m in the local UTM zone. The model also gets NDVI, NDWI, MNDWI and NDMI.
 
+**Clear-water image.** Seagrass is visible from space only where the seafloor shows through, and a
+yearly median blends clear days with murky, glinty ones. Each site therefore also gets a clear-water
+image: for every pixel, the single cloud-free observation of the period with the lowest near-infrared
+reflectance (least sun glint, haze and white water). Its blue, green, red and NIR bands, plus the
+log band ratios ln(B2/B3) and ln(B3/B4) (largely insensitive to water depth, after Lyzenga and Stumpf),
+are model inputs.
+
 **Classes.** Open water · mangrove · salt marsh · seagrass · tidal flat · other land. `255` means
 *no label* and is never trained on or scored.
 

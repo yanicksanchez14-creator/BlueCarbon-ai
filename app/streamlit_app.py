@@ -924,9 +924,8 @@ with tab_analyze:
                              "uint16", 0, S2_BANDS, progress=bar.progress)
                 anc = None
                 if predictor.needs_ancillary:
-                    st.write("Fetching elevation and tidal layers…")
-                    gee.download(gee.ancillary_image(CFG), bbox, tmp / "ancillary.tif", CFG, "int16", None,
-                                 ["elevation", "tidal_prob", "abs_lat"])
+                    st.write("Fetching elevation, tidal and clear-water layers…")
+                    gee.download_ancillary(bbox, str(start), str(end), tmp / "ancillary.tif", CFG)
                     with rasterio.open(tmp / "ancillary.tif") as a:
                         anc = a.read()
                 st.write("Segmenting habitats…")

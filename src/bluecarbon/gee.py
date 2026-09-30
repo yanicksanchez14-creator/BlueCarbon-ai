@@ -106,15 +106,56 @@ def _tidal_band(cfg: Config) -> str | None:
     return prob[0] if prob else None
 
 
-def ancillary_image(cfg: Config):
-    """int16 context layers: elevation (m), tidal wetland probability (0-100), |latitude| x 100."""
+def clear_water_composite(region, start: str, end: str, cfg: Config):
+    """Per pixel, the cloud-free observation with the lowest NIR (least glint / haze / white water)."""
     _require_ee()
+    from .features import CLEAR_BANDS
+
+    ic = cfg.imagery
+    s2 = ee.ImageCollection(ic.collection).filterBounds(region).filterDate(start, end)
+    cs = ee.ImageCollection(ic.cloud_score_collection)
+    linked = s2.linkCollection(cs, [ic.cloud_score_band])
+
+    def prep(im):
+        im = im.updateMask(im.select(ic.cloud_score_band).gte(ic.clear_threshold))
+        return im.select(CLEAR_BANDS).addBands(im.select("B8").multiply(-1).rename("q"))
+
+    best = linked.map(prep).qualityMosaic("q").select(CLEAR_BANDS)
+    return best.unmask(0).clamp(0, 10000).rename([f"{b}_clear" for b in CLEAR_BANDS])
+
+
+def ancillary_image(cfg: Config, region=None, start: str | None = None, end: str | None = None):
+    """int16 context layers: elevation (m), tidal wetland probability (0-100), |latitude| x 100 and
+    the clear-water bands for the given period."""
+    _require_ee()
+    from .features import ANCILLARY_BANDS
+
     lc = cfg.labels
     elev = ee.Image(lc.dem).select("elevation").unmask(0).clamp(-100, 3000)
     band = _tidal_band(cfg)
     tidal = (ee.Image(lc.tidal_wetland).select(band).unmask(0) if band else ee.Image(0))
     abs_lat = ee.Image.pixelLonLat().select("latitude").abs().multiply(100)
-    return ee.Image.cat([elev, tidal, abs_lat]).rename(["elevation", "tidal_prob", "abs_lat"]).toInt16()
+    clear = clear_water_composite(region, start, end, cfg)
+    return ee.Image.cat([elev, tidal, abs_lat, clear]).rename(ANCILLARY_BANDS).toInt16()
+
+
+def download_ancillary(bbox: list[float], start: str, end: str, out_path: str | Path, cfg: Config,
+                       progress=None) -> Path:
+    from .features import ANCILLARY_BANDS
+
+    img = ancillary_image(cfg, bbox_geometry(bbox), start, end)
+    return download(img, bbox, out_path, cfg, "int16", None, ANCILLARY_BANDS, progress=progress)
+
+
+def ancillary_ok(path: str | Path) -> bool:
+    """True if an ancillary.tif exists and has the current set of bands."""
+    from .features import ANCILLARY_BANDS
+
+    p = Path(path)
+    if not p.exists():
+        return False
+    with rasterio.open(p) as ds:
+        return ds.count == len(ANCILLARY_BANDS)
 
 
 def tidal_zone(cfg: Config):

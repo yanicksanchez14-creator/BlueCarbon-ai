@@ -40,10 +40,10 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
         if only and site["name"] not in only:
             continue
         d = cfg.work / "sites" / site["name"]
-        if not (d / "ancillary.tif").exists() and (d / "image.tif").exists():
-            typer.echo(f"[{site['name']}] ancillary layers ...")
-            gee.download(gee.ancillary_image(cfg), site["bbox"], d / "ancillary.tif", cfg, "int16", None,
-                         ["elevation", "tidal_prob", "abs_lat"])
+        yr_start, yr_end = f"{year}-01-01", f"{year + 1}-01-01"
+        if not gee.ancillary_ok(d / "ancillary.tif") and (d / "image.tif").exists():
+            typer.echo(f"[{site['name']}] ancillary + clear-water layers ...")
+            gee.download_ancillary(site["bbox"], yr_start, yr_end, d / "ancillary.tif", cfg)
         if labels_only and (d / "meta.json").exists() and \
                 gee.LABEL_VERSION in json.loads((d / "meta.json").read_text()).get("label_sources", []):
             typer.echo(f"[{site['name']}] labels already up to date, skipping (delete meta.json to redo)")
@@ -53,10 +53,9 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
             img = gee.s2_composite(region, f"{year}-01-01", f"{year + 1}-01-01", cfg)
             typer.echo(f"[{site['name']}] imagery ...")
             gee.download(img, site["bbox"], d / "image.tif", cfg, "uint16", 0, S2_BANDS)
-        if not (d / "ancillary.tif").exists():
-            typer.echo(f"[{site['name']}] ancillary layers ...")
-            gee.download(gee.ancillary_image(cfg), site["bbox"], d / "ancillary.tif", cfg, "int16", None,
-                         ["elevation", "tidal_prob", "abs_lat"])
+        if not gee.ancillary_ok(d / "ancillary.tif"):
+            typer.echo(f"[{site['name']}] ancillary + clear-water layers ...")
+            gee.download_ancillary(site["bbox"], yr_start, yr_end, d / "ancillary.tif", cfg)
         typer.echo(f"[{site['name']}] labels ...")
         info: dict = {}
         gee.download(gee.reference_labels(region, cfg, info, site.get("seagrass_unmapped", False)), site["bbox"], d / "label.tif", cfg, "uint8", 255,
@@ -221,8 +220,7 @@ def scene(bbox: list[float] = typer.Option(..., help="lon_min lat_min lon_max la
     d = cfg.work / "scenes" / name
     img = gee.s2_composite(gee.bbox_geometry(bbox), start, end, cfg)
     gee.download(img, bbox, d / "image.tif", cfg, "uint16", 0, S2_BANDS)
-    gee.download(gee.ancillary_image(cfg), bbox, d / "ancillary.tif", cfg, "int16", None,
-                 ["elevation", "tidal_prob", "abs_lat"])
+    gee.download_ancillary(bbox, start, end, d / "ancillary.tif", cfg)
     predict(d / "image.tif", model, d / "pred.tif", config)
     report(d / "pred.tif", model, config, d)
 
@@ -240,12 +238,11 @@ def case_study(model: Path = typer.Option(..., "--model", "-m"), config: str = C
     gee.init(cfg.project, service_account.read_text() if service_account else None)
     d = cfg.work / "scenes" / cs["name"]
     d.mkdir(parents=True, exist_ok=True)
-    if not (d / "ancillary.tif").exists():
-        gee.download(gee.ancillary_image(cfg), cs["bbox"], d / "ancillary.tif", cfg, "int16", None,
-                     ["elevation", "tidal_prob", "abs_lat"])
     for key, (a, b) in cs["periods"].items():
         img = gee.s2_composite(gee.bbox_geometry(cs["bbox"]), a, b, cfg)
         gee.download(img, cs["bbox"], d / f"{key}_image.tif", cfg, "uint16", 0, S2_BANDS)
+        if not gee.ancillary_ok(d / f"{key}_ancillary.tif"):  # clear-water bands differ per period
+            gee.download_ancillary(cs["bbox"], a, b, d / f"{key}_ancillary.tif", cfg)
         predict(d / f"{key}_image.tif", model, d / f"{key}_pred.tif", config)
     rep = change_scene_report(d / "t0_pred.tif", d / "t1_pred.tif", cfg.carbon)
     write_report(rep, d, "change_report")

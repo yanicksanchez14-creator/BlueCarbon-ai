@@ -100,7 +100,7 @@ def test_ancillary_inputs(tmp_path):
         recs += make_chips(d / "image.tif", d / "label.tif", tmp_path / "chips", f"s{i}", size=128, stride=128,
                            force_split=split, ancillary_path=anc)
     with np.load(recs[0].path) as z:
-        assert "anc" in z.files and z["anc"].shape == (3, 128, 128)
+        assert "anc" in z.files and z["anc"].shape == (7, 128, 128)
 
     train(cfg, recs, tmp_path / "unet", log=lambda *_: None)
     pr = load_predictor(tmp_path / "unet" / "model.pt")

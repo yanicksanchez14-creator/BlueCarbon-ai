@@ -24,25 +24,39 @@ FEATURE_NAMES: list[str] = S2_BANDS + list(INDICES)
 N_FEATURES = len(FEATURE_NAMES)
 
 # Ancillary "context" layers stored alongside the imagery (ancillary.tif, int16):
-#   elevation  NASADEM metres
-#   tidal_prob Murray et al. tidal wetland probability, 0-100
-#   abs_lat    |latitude| x 100
+#   elevation   NASADEM metres
+#   tidal_prob  Murray et al. tidal wetland probability, 0-100
+#   abs_lat     |latitude| x 100 (stored for reference; NOT a model input, see below)
+#   B*_clear    "clear-water" reflectance x 1e4: for each pixel, the single cloud-free observation of
+#               the period with the least near-infrared (least sun glint, haze and white water), so a
+#               shallow seafloor shows through. The yearly median blurs murky and glinty days together,
+#               which washes out seagrass.
 # Elevation and tidal probability carry what a single image cannot show: whether the tide reaches
-# a pixel (salt marsh vs freshwater marsh). Latitude is stored but is NOT a model input: with a
-# handful of training sites the model used it as a site ID ("no mangrove north of 25 deg") and
-# missed the mangroves of held-out Tampa Bay and Moreton Bay. The mangrove latitude range is
-# applied as an explicit rule instead (priors.py).
-ANCILLARY_BANDS: list[str] = ["elevation", "tidal_prob", "abs_lat"]
-ANCILLARY_FEATURES: list[str] = ["ELEV", "TIDAL"]
+# a pixel (salt marsh vs freshwater marsh). Latitude is NOT a model input: with a handful of
+# training sites the model used it as a site ID ("no mangrove north of 25 deg") and missed the
+# mangroves of held-out Tampa Bay and Moreton Bay. The mangrove latitude range is applied as an
+# explicit rule instead (priors.py).
+CLEAR_BANDS: list[str] = ["B2", "B3", "B4", "B8"]
+ANCILLARY_BANDS: list[str] = ["elevation", "tidal_prob", "abs_lat"] + [f"{b}_clear" for b in CLEAR_BANDS]
+ANCILLARY_FEATURES: list[str] = ["ELEV", "TIDAL", "B2_CLEAR", "B3_CLEAR", "B4_CLEAR", "B8_CLEAR",
+                                 "LN_B2_B3_CLEAR", "LN_B3_B4_CLEAR"]
 N_ANC_FEATURES = len(ANCILLARY_FEATURES)
 FEATURE_NAMES_ANC: list[str] = FEATURE_NAMES + ANCILLARY_FEATURES
 
 
 def ancillary_features(anc: np.ndarray) -> np.ndarray:
+    if anc.shape[0] < len(ANCILLARY_BANDS):
+        raise ValueError(f"ancillary layers have {anc.shape[0]} bands, expected {len(ANCILLARY_BANDS)} "
+                         f"({', '.join(ANCILLARY_BANDS)}); re-fetch ancillary.tif")
     a = np.nan_to_num(anc.astype(np.float32))
     elev = np.clip(a[0], -10, 60) / 60.0
     tidal = np.clip(a[1], 0, 100) / 100.0
-    return np.stack([elev, tidal]).astype(np.float32)
+    clear = np.clip(a[3:3 + len(CLEAR_BANDS)], 0, REFLECTANCE_SCALE) / REFLECTANCE_SCALE
+    eps = 1e-3
+    # log band ratios are largely insensitive to water depth (Lyzenga / Stumpf), so bottom type shows
+    ln23 = np.clip(np.log(clear[0] + eps) - np.log(clear[1] + eps), -3, 3)
+    ln34 = np.clip(np.log(clear[1] + eps) - np.log(clear[2] + eps), -3, 3)
+    return np.concatenate([np.stack([elev, tidal]), clear, np.stack([ln23, ln34])]).astype(np.float32)
 
 
 def _nd(a: np.ndarray, b: np.ndarray) -> np.ndarray:
