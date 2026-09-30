@@ -40,6 +40,9 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
         if only and site["name"] not in only:
             continue
         d = cfg.work / "sites" / site["name"]
+        if labels_only and (d / "meta.json").exists() and "label_sources" in json.loads((d / "meta.json").read_text()):
+            typer.echo(f"[{site['name']}] labels already rebuilt, skipping (delete meta.json to redo)")
+            continue
         region = gee.bbox_geometry(site["bbox"])
         if not (labels_only and (d / "image.tif").exists()):
             img = gee.s2_composite(region, f"{year}-01-01", f"{year + 1}-01-01", cfg)

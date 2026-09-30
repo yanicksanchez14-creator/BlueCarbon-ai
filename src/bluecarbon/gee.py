@@ -104,12 +104,21 @@ def tidal_zone(cfg: Config):
     Fallback: low-lying (<= 3 m) land within 1 km of open water.
     """
     lc = cfg.labels
-    bands = _asset_bands(lc.tidal_wetland)
-    if bands and lc.tidal_wetland_band in bands:
-        return ee.Image(lc.tidal_wetland).select(lc.tidal_wetland_band).gte(lc.tidal_wetland_min_prob), "murray-gic"
+    bands = _asset_bands(lc.tidal_wetland) or []
+    band = lc.tidal_wetland_band if lc.tidal_wetland_band in bands else None
+    if band is None:  # tolerate renamed bands: prefer the most recent probability band
+        prob = sorted((b for b in bands if "prob" in b.lower()), key=lambda b: ("end" not in b, b))
+        band = prob[0] if prob else None
+    if band:
+        return ee.Image(lc.tidal_wetland).select(band).gte(lc.tidal_wetland_min_prob), f"murray-gic:{band}"
+    if bands:
+        print(f"[bluecarbon] {lc.tidal_wetland} has no probability band (bands: {bands}); using fallback")
     dem = ee.Image(lc.dem).select("elevation")
     wc = ee.ImageCollection(lc.worldcover).first().select("Map")
-    near_water = wc.eq(80).focalMax(radius=1000, kernelType="circle", units="meters")
+    # Computed at 100 m: a 1 km neighbourhood at 10 m is ~30k pixels per output pixel and times out.
+    near_water = (wc.eq(80).reduceResolution(ee.Reducer.max(), maxPixels=1024)
+                  .reproject(crs="EPSG:4326", scale=100)
+                  .focalMax(radius=10, kernelType="circle", units="pixels"))
     return dem.lte(3).And(near_water), "elevation-fallback"
 
 
@@ -170,7 +179,35 @@ def reference_labels(region, cfg: Config, report: dict | None = None):
 
 
 # --------------------------------------------------------------------------- download
-def _compute_tile(image, crs: str, transform: rasterio.Affine, x0: int, y0: int, w: int, h: int) -> np.ndarray:
+_RETRYABLE = ("timed out", "timeout", "memory", "too many", "limit", "503", "500", "internal error")
+
+
+def _compute_tile(image, crs: str, transform: rasterio.Affine, x0: int, y0: int, w: int, h: int,
+                  attempt: int = 0) -> np.ndarray:
+    """Fetch one tile; on a server timeout, split it into four smaller tiles (recursively) and retry."""
+    import time
+
+    try:
+        return _compute_tile_once(image, crs, transform, x0, y0, w, h)
+    except Exception as e:
+        msg = str(e).lower()
+        if not any(k in msg for k in _RETRYABLE):
+            raise
+        if min(w, h) >= 128:
+            hw, hh = w // 2, h // 2
+            print(f"[bluecarbon] tile {w}x{h} at ({x0},{y0}) failed ({str(e)[:60]}); splitting", flush=True)
+            top = np.concatenate([_compute_tile(image, crs, transform, x0, y0, hw, hh),
+                                  _compute_tile(image, crs, transform, x0 + hw, y0, w - hw, hh)], axis=2)
+            bot = np.concatenate([_compute_tile(image, crs, transform, x0, y0 + hh, hw, h - hh),
+                                  _compute_tile(image, crs, transform, x0 + hw, y0 + hh, w - hw, h - hh)], axis=2)
+            return np.concatenate([top, bot], axis=1)
+        if attempt < 4:
+            time.sleep(5 * (attempt + 1))
+            return _compute_tile(image, crs, transform, x0, y0, w, h, attempt + 1)
+        raise
+
+
+def _compute_tile_once(image, crs: str, transform: rasterio.Affine, x0: int, y0: int, w: int, h: int) -> np.ndarray:
     tx = transform @ rasterio.Affine.translation(x0, y0)
     req = {
         "expression": image,

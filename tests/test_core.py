@@ -128,3 +128,25 @@ def test_config_loads_repo_default():
     cfg = load_config("configs/default.yaml")
     assert cfg.carbon.classes["mangrove"].soil[1] == 471
     assert cfg.chips.stride == cfg.chips.size
+
+
+def test_compute_tile_splits_on_timeout(monkeypatch):
+    from rasterio.transform import from_origin
+
+    from bluecarbon import gee
+
+    calls = []
+
+    def fake_once(image, crs, transform, x0, y0, w, h):
+        calls.append((w, h))
+        if w * h > 128 * 128:
+            raise Exception("Computation timed out.")
+        yy, xx = np.mgrid[y0 : y0 + h, x0 : x0 + w]
+        return np.stack([yy, xx]).astype(np.int32)
+
+    monkeypatch.setattr(gee, "_compute_tile_once", fake_once)
+    out = gee._compute_tile(None, "EPSG:32611", from_origin(0, 0, 10, 10), 0, 0, 512, 300)
+    yy, xx = np.mgrid[0:300, 0:512]
+    assert out.shape == (2, 300, 512)
+    assert (out[0] == yy).all() and (out[1] == xx).all()
+    assert len(calls) > 1
