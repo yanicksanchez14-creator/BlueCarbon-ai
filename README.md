@@ -9,7 +9,7 @@ satellite imagery with machine learning, and estimating how much carbon they hol
 ![Python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-![Mission Bay: satellite image, false-color infrared, and the BlueCarbon-AI habitat map](docs/img/mission_bay_hero.png)
+![Held-out coastlines: Sentinel-2 imagery (top) and the BlueCarbon-AI habitat map (bottom)](docs/img/hero.png)
 
 ## The problem
 
@@ -48,6 +48,35 @@ scale.
   estimated with 5,000-draw Monte Carlo sampling over IPCC Tier 1 coefficient ranges.
 - **Production engineering.** Installable Python package, typed configuration, self-describing model
   files, an automated test suite that runs the full pipeline offline, and GitHub Actions CI.
+
+<!-- results:start -->
+## Results
+
+The model was trained on 11 coastal sites and scored on areas it **never saw during training**: held-out
+5 km blocks from every site, plus three entire estuaries (Mission Bay, Moreton Bay and Tampa Bay). The
+deep-learning model (U-Net, ResNet-34 encoder) beat the gradient-boosted alternative and is the one
+deployed.
+
+| Habitat | IoU | F1 | What it means |
+|---|---:|---:|---|
+| **Mangrove** ◆ | **0.90** | **0.95** | Reliable, including on unseen estuaries (Tampa Bay 0.86, Moreton Bay 0.77) |
+| Open water | 0.96 | 0.98 | Reliable |
+| Other land | 0.91 | 0.95 | Reliable |
+| Freshwater wetland | 0.61 | 0.76 | Separates inland marsh from tidal salt marsh |
+| Tidal flat | 0.54 | 0.70 | Moderate |
+| **Salt marsh** ◆ | **0.35** | **0.52** | Varies by region: 0.76 on unseen Mission Bay, 0.80 in the Wadden Sea, weaker in San Francisco Bay |
+| **Seagrass** ◆ | 0.00 | 0.00 | Not yet detected: global seagrass labels cover only one training site |
+| **Mean (7 classes)** | **0.61** | **0.69** | |
+
+◆ = blue carbon habitat. IoU (intersection over union) measures how well the predicted map overlaps
+the reference map, where 1.0 is a perfect match. Overall pixel accuracy (94%) is reported but isn't the
+headline number, because open water dominates it.
+
+**Next steps:** regional seagrass survey maps as training labels (seagrass is the main gap), per-region
+accuracy calibration, and low-tide image selection for intertidal habitats.
+
+The live app includes 12 mapped sites, among them a 2018 → 2024 change analysis of Mission Bay.
+<!-- results:end -->
 
 ## How it works
 

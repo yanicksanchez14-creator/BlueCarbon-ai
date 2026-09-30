@@ -527,7 +527,7 @@ def summary_html(meta: dict, report: dict) -> str:
         if good:
             parts.append(f"{good.capitalize()} are mapped reliably")
         if fair:
-            parts.append(f"{fair} is mapped fairly well but misses some patches")
+            parts.append(f"{fair} {'are' if ' and ' in fair else 'is'} mapped fairly well but misses some patches")
         if weak:
             parts.append(f"{weak} detection is not yet reliable")
         conf = "; ".join(parts) or "Map accuracy has not been tested"
@@ -907,6 +907,9 @@ with tab_analyze:
                 with rasterio.open(tmp / "image.tif") as src:
                     bands, prof = src.read(), src.profile
                 cls, _ = predictor.predict(bands, CFG.predict.tile, CFG.predict.overlap)
+                from bluecarbon.priors import apply_to_classes
+
+                cls = apply_to_classes(cls, (bbox[1] + bbox[3]) / 2)
                 prof.update(count=1, dtype="uint8", nodata=255)
                 with rasterio.open(tmp / "pred.tif", "w", **prof) as dst:
                     dst.write(cls, 1)

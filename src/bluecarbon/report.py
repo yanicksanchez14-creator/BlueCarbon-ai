@@ -20,7 +20,11 @@ def read_classes(path: str | Path):
 
 
 def scene_report(pred_path: str | Path, cfg: CarbonCfg, test_confusion: list | None = None) -> dict:
+    from .priors import apply_to_classes, apply_to_confusion, raster_center_lat
+
     cls, transform, crs = read_classes(pred_path)
+    lat = raster_center_lat(transform, crs, *cls.shape)
+    cls = apply_to_classes(cls, lat)
     areas = class_areas_ha(cls, transform, crs)
     rep = {"areas_ha": areas}
     sd, basis = None, areas
@@ -28,9 +32,7 @@ def scene_report(pred_path: str | Path, cfg: CarbonCfg, test_confusion: list | N
         # Maps are biased (e.g. over-predicting a rare class). Correct areas with the model's held-out
         # confusion matrix and use the corrected areas for carbon (Olofsson et al. 2014 good practice).
         px_ha = float(np.mean(pixel_area_ha(transform, crs, cls.shape[0])))
-        from .schema import pad_confusion
-
-        adj = error_adjusted_area(pad_confusion(test_confusion), class_pixel_counts(cls), px_ha)
+        adj = error_adjusted_area(apply_to_confusion(test_confusion, lat), class_pixel_counts(cls), px_ha)
         rep["error_adjusted_areas_ha"] = adj
         basis = {k: v["adjusted_ha"] for k, v in adj.items()}
         sd = {k: v["ci95_ha"] / 1.96 for k, v in adj.items()}
@@ -39,9 +41,16 @@ def scene_report(pred_path: str | Path, cfg: CarbonCfg, test_confusion: list | N
     return rep
 
 
+def _areas_with_priors(path):
+    from .priors import apply_to_classes, raster_center_lat
+
+    cls, transform, crs = read_classes(path)
+    return class_areas_ha(apply_to_classes(cls, raster_center_lat(transform, crs, *cls.shape)), transform, crs)
+
+
 def change_scene_report(t0_path, t1_path, cfg: CarbonCfg) -> dict:
-    a0 = class_areas_ha(*read_classes(t0_path))
-    a1 = class_areas_ha(*read_classes(t1_path))
+    a0 = _areas_with_priors(t0_path)
+    a1 = _areas_with_priors(t1_path)
     return {"areas_t0_ha": a0, "areas_t1_ha": a1, "change": change_report(a0, a1, cfg)}
 
 

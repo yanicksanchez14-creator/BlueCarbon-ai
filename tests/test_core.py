@@ -150,3 +150,18 @@ def test_compute_tile_splits_on_timeout(monkeypatch):
     assert out.shape == (2, 300, 512)
     assert (out[0] == yy).all() and (out[1] == xx).all()
     assert len(calls) > 1
+
+
+def test_mangrove_range_prior():
+    from bluecarbon.priors import apply_to_classes, apply_to_confusion, mangrove_possible
+    from bluecarbon.schema import KEY_TO_ID
+
+    assert mangrove_possible(25.0) and not mangrove_possible(37.5) and not mangrove_possible(-45)
+    cls = np.array([[1, 2, 0]], np.uint8)
+    assert (apply_to_classes(cls, 37.5) == [[2, 2, 0]]).all()
+    assert (apply_to_classes(cls, 20.0) == cls).all()
+    cm = np.eye(7) * 10
+    cm[5, 1] = 5  # some land predicted as mangrove
+    out = apply_to_confusion(cm, 40.0)
+    m = KEY_TO_ID["mangrove"]
+    assert out[m].sum() == 0 and out[:, m].sum() == 0 and out.sum() == cm.sum()

@@ -162,6 +162,9 @@ def predict(image: Path, model: Path = typer.Option(..., "--model", "-m"), out: 
     with rasterio.open(image) as src:
         bands, prof = src.read(), src.profile.copy()
     cls, conf = pr.predict(bands, cfg.predict.tile, cfg.predict.overlap, cfg.predict.tta)
+    from .priors import apply_to_classes, raster_center_lat
+
+    cls = apply_to_classes(cls, raster_center_lat(prof["transform"], prof["crs"], *cls.shape))
     prof.update(count=2, dtype="uint8", nodata=IGNORE_INDEX, compress="deflate")
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     with rasterio.open(out, "w", **prof) as dst:

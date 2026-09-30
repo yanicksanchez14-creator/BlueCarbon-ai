@@ -1,0 +1,235 @@
+{
+  "title": "South San Diego Bay",
+  "description": "South San Diego Bay NWR salt marsh. Sentinel-2 2021 composite. This area was part of the training data, so the map looks better than it would on a new coastline.",
+  "classes": [
+    {
+      "id": 0,
+      "key": "water",
+      "name": "Open water",
+      "color": "#1f5fbf",
+      "blue_carbon": false
+    },
+    {
+      "id": 1,
+      "key": "mangrove",
+      "name": "Mangrove",
+      "color": "#0b7a3e",
+      "blue_carbon": true
+    },
+    {
+      "id": 2,
+      "key": "saltmarsh",
+      "name": "Salt marsh",
+      "color": "#9bb52a",
+      "blue_carbon": true
+    },
+    {
+      "id": 3,
+      "key": "seagrass",
+      "name": "Seagrass",
+      "color": "#14a3a0",
+      "blue_carbon": true
+    },
+    {
+      "id": 4,
+      "key": "tidal_flat",
+      "name": "Tidal flat / bare",
+      "color": "#c07a2c",
+      "blue_carbon": false
+    },
+    {
+      "id": 5,
+      "key": "other_land",
+      "name": "Other land",
+      "color": "#8b9199",
+      "blue_carbon": false
+    },
+    {
+      "id": 6,
+      "key": "freshwater",
+      "name": "Freshwater wetland",
+      "color": "#a0529b",
+      "blue_carbon": false
+    }
+  ],
+  "model": {
+    "arch": "Unet",
+    "encoder": "resnet34",
+    "kind": "unet",
+    "test": {
+      "overall_accuracy": 0.9446,
+      "kappa": 0.8996,
+      "mIoU": 0.6097,
+      "macro_f1": 0.6939,
+      "iou": {
+        "water": 0.9563,
+        "mangrove": 0.8976,
+        "saltmarsh": 0.351,
+        "seagrass": 0.0,
+        "tidal_flat": 0.5434,
+        "other_land": 0.9118,
+        "freshwater": 0.608
+      },
+      "f1": {
+        "water": 0.9777,
+        "mangrove": 0.946,
+        "saltmarsh": 0.5196,
+        "seagrass": 0.0,
+        "tidal_flat": 0.7041,
+        "other_land": 0.9538,
+        "freshwater": 0.7562
+      },
+      "precision": {
+        "water": 0.977,
+        "mangrove": 0.9578,
+        "saltmarsh": 0.4498,
+        "seagrass": 0.0,
+        "tidal_flat": 0.7637,
+        "other_land": 0.973,
+        "freshwater": 0.6567
+      },
+      "recall": {
+        "water": 0.9783,
+        "mangrove": 0.9346,
+        "saltmarsh": 0.6151,
+        "seagrass": 0.0,
+        "tidal_flat": 0.6532,
+        "other_land": 0.9354,
+        "freshwater": 0.8914
+      },
+      "support_px": {
+        "water": 9741974,
+        "mangrove": 1390811,
+        "saltmarsh": 212865,
+        "seagrass": 27208,
+        "tidal_flat": 569390,
+        "other_land": 2958936,
+        "freshwater": 465867
+      }
+    },
+    "name": "BlueCarbon-AI v2",
+    "pilot": false,
+    "evaluation": "non-overlapping 5 km spatial blocks plus three estuaries never used in training (Mission Bay, Moreton Bay, Tampa Bay)",
+    "training_data": "Sentinel-2 2021 composites of 11 coastal sites on four continents, labelled from ESA WorldCover, Murray et al. tidal flats and the Allen Coral Atlas"
+  },
+  "kind": "single",
+  "bounds": [
+    [
+      32.55992818464437,
+      -117.1502238120156
+    ],
+    [
+      32.640078638035625,
+      -117.07988474864918
+    ]
+  ],
+  "report": {
+    "areas_ha": {
+      "water": 2462.07,
+      "mangrove": 0.0,
+      "saltmarsh": 242.76,
+      "seagrass": 0.0,
+      "tidal_flat": 214.53,
+      "other_land": 2926.5800000000004,
+      "freshwater": 5.980000000000001
+    },
+    "error_adjusted_areas_ha": {
+      "water": {
+        "mapped_ha": 2462.07,
+        "adjusted_ha": 2499.1,
+        "ci95_ha": 0.53
+      },
+      "mangrove": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 0.0,
+        "ci95_ha": 0.0
+      },
+      "saltmarsh": {
+        "mapped_ha": 242.76,
+        "adjusted_ha": 239.04,
+        "ci95_ha": 0.25
+      },
+      "seagrass": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 6.87,
+        "ci95_ha": 0.08
+      },
+      "tidal_flat": {
+        "mapped_ha": 214.53,
+        "adjusted_ha": 214.05,
+        "ci95_ha": 0.34
+      },
+      "other_land": {
+        "mapped_ha": 2926.58,
+        "adjusted_ha": 2860.56,
+        "ci95_ha": 0.56
+      },
+      "freshwater": {
+        "mapped_ha": 5.98,
+        "adjusted_ha": 32.31,
+        "ci95_ha": 0.31
+      }
+    },
+    "carbon_area_basis": "error_adjusted",
+    "carbon": {
+      "classes": {
+        "saltmarsh": {
+          "area_ha": 239.04,
+          "stock_tC": {
+            "mean": 65584.97961575958,
+            "p05": 62368.46052764909,
+            "p95": 70121.14869315049
+          },
+          "stock_tCO2e": {
+            "mean": 240500.12025099038,
+            "p05": 228705.14475488922,
+            "p95": 257134.25225778288
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 792.8853025168535,
+            "p05": 672.8518536767202,
+            "p95": 908.2954261409382
+          }
+        },
+        "seagrass": {
+          "area_ha": 6.87,
+          "stock_tC": {
+            "mean": 765.363246731378,
+            "p05": 639.5734939574473,
+            "p95": 900.0615450373845
+          },
+          "stock_tCO2e": {
+            "mean": 2806.587025763963,
+            "p05": 2345.316002341959,
+            "p95": 3300.5256856520887
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 11.201672091699422,
+            "p05": 7.043609022391767,
+            "p95": 15.660239106335366
+          }
+        }
+      },
+      "blue_carbon_area_ha": 245.91,
+      "total_stock_tCO2e": {
+        "mean": 243306.70727675434,
+        "p05": 231489.11106502425,
+        "p95": 259985.98402984615
+      },
+      "total_sequestration_tCO2e_per_yr": {
+        "mean": 804.0869746085529,
+        "p05": 684.0072996638538,
+        "p95": 918.7449015299394
+      },
+      "indicative_annual_value_usd": {
+        "low": 12061.304619128292,
+        "mid": 20102.17436521382,
+        "high": 32163.478984342113
+      },
+      "method": "IPCC 2013 Wetlands Supplement Tier 1; triangular Monte Carlo, n=5000"
+    }
+  },
+  "region": "California, USA",
+  "period": "Full year 2021",
+  "held_out": false
+}
