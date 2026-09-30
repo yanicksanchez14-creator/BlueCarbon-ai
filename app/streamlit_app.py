@@ -24,6 +24,10 @@ from streamlit_folium import st_folium
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+# Streamlit reruns this script in a long-lived process, so an updated deploy can otherwise keep an
+# old copy of the bluecarbon package in memory. Drop it so every run imports the current code.
+for _m in [m for m in sys.modules if m == "bluecarbon" or m.startswith("bluecarbon.")]:
+    del sys.modules[_m]
 
 from bluecarbon.config import load_config  # noqa: E402
 from bluecarbon.schema import BLUE_CARBON_KEYS, CLASSES  # noqa: E402
@@ -377,8 +381,9 @@ def model_panel(model: dict | None) -> None:
                 unsafe_allow_html=True)
     if t:
         rows = "".join(
-            f'<tr><td>{CLS[k].name}</td><td class="num">{v:.2f}</td><td class="num">{t["f1"][k]:.2f}</td>'
-            f'<td class="num">{t["support_px"][k]:,}</td></tr>' for k, v in t["iou"].items() if v is not None)
+            f'<tr><td>{CLS[k].name}</td><td class="num">{v:.2f}</td><td class="num">{(t["f1"].get(k) or 0):.2f}</td>'
+            f'<td class="num">{t["support_px"].get(k, 0):,}</td></tr>' for k, v in t["iou"].items()
+            if v is not None and k in CLS)
         st.markdown(
             f'<div style="display:flex;gap:1.6rem;margin:.9rem 0">'
             f'<div><div class="bc-note">Mean IoU (overlap)</div><div style="font-size:1.35rem;font-weight:700">{t["mIoU"]:.2f}</div></div>'
@@ -528,7 +533,7 @@ def summary_html(meta: dict, report: dict) -> str:
         pts.append(("Blue carbon habitat", "None detected, so no carbon is counted for this area."))
     if t:
         def names(pred):
-            n = [CLS[k].name.lower() for k, v in t["iou"].items() if v is not None and pred(v)]
+            n = [CLS[k].name.lower() for k, v in t["iou"].items() if v is not None and k in CLS and pred(v)]
             return ", ".join(n[:-1]) + " and " + n[-1] if len(n) > 1 else (n[0] if n else "")
 
         good, fair, weak = names(lambda v: v >= 0.7), names(lambda v: 0.4 <= v < 0.7), names(lambda v: v < 0.4)
