@@ -53,7 +53,9 @@ def load_checkpoint(path: str | Path, device: str | torch.device = "cpu") -> tup
     ck = torch.load(path, map_location=device, weights_only=False)
     if ck.get("version") != CHECKPOINT_VERSION:
         raise ValueError(f"{path} is not a v2 bluecarbon checkpoint")
-    if ck["features"] != FEATURE_NAMES or ck["classes"] != CLASS_KEYS:
+    from .schema import compatible
+
+    if ck["features"] != FEATURE_NAMES or not compatible(ck["classes"]):
         raise ValueError("Checkpoint feature/class schema does not match this version of bluecarbon")
     model = build_model(ck["arch"], ck["encoder"], None, len(ck["features"]), len(ck["classes"]))
     model.load_state_dict(ck["state_dict"])

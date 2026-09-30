@@ -28,7 +28,9 @@ def scene_report(pred_path: str | Path, cfg: CarbonCfg, test_confusion: list | N
         # Maps are biased (e.g. over-predicting a rare class). Correct areas with the model's held-out
         # confusion matrix and use the corrected areas for carbon (Olofsson et al. 2014 good practice).
         px_ha = float(np.mean(pixel_area_ha(transform, crs, cls.shape[0])))
-        adj = error_adjusted_area(np.asarray(test_confusion), class_pixel_counts(cls), px_ha)
+        from .schema import pad_confusion
+
+        adj = error_adjusted_area(pad_confusion(test_confusion), class_pixel_counts(cls), px_ha)
         rep["error_adjusted_areas_ha"] = adj
         basis = {k: v["adjusted_ha"] for k, v in adj.items()}
         sd = {k: v["ci95_ha"] / 1.96 for k, v in adj.items()}

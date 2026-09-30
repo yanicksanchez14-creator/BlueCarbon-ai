@@ -119,7 +119,8 @@ def reference_labels(region, cfg: Config, report: dict | None = None):
     Priority (later overrides earlier):
       WorldCover base -> Murray tidal flats -> tidal-zone herbaceous vegetation = salt marsh
       -> WorldCover mangrove -> Allen Coral Atlas / survey-polygon seagrass.
-    Freshwater wetland (WorldCover 90 outside the tidal zone, e.g. Everglades sawgrass) is ignored.
+    Herbaceous wetland outside the tidal zone (e.g. Everglades sawgrass) becomes its own freshwater
+    wetland class, so the model learns to tell it apart from salt marsh.
     """
     _require_ee()
     lc = cfg.labels
@@ -147,6 +148,8 @@ def reference_labels(region, cfg: Config, report: dict | None = None):
     herb = wc.eq(90).Or(wc.eq(30)).Or(wc.eq(20))
     marsh = herb.And(tz.unmask(0)).And(dem.lte(lc.marsh_max_elev_m)).And(wc.neq(95))
     lab = lab.where(marsh, k["saltmarsh"])
+    # herbaceous wetland outside the tidal zone = freshwater marsh (not blue carbon)
+    lab = lab.where(wc.eq(90).And(marsh.Not()), k["freshwater"])
     lab = lab.where(wc.eq(95), k["mangrove"])
 
     if _asset_bands(lc.reef_habitat):

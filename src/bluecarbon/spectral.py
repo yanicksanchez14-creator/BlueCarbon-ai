@@ -23,7 +23,7 @@ import numpy as np
 from scipy.ndimage import uniform_filter
 
 from .features import compute_features, valid_mask
-from .schema import CLASS_KEYS, IGNORE_INDEX, N_CLASSES
+from .schema import CLASS_KEYS, IGNORE_INDEX, N_CLASSES, compatible
 
 EPS = 1e-4
 CONTEXT_SCALES = (3, 9)
@@ -105,7 +105,10 @@ class SpectralModel:
     def predict_proba(self, bands: np.ndarray) -> np.ndarray:
         x = pixel_features(bands)
         n, h, w = x.shape
-        p = self.booster.predict(x.reshape(n, -1).T).T.reshape(N_CLASSES, h, w).astype(np.float32)
+        raw = self.booster.predict(x.reshape(n, -1).T).T
+        p = np.zeros((N_CLASSES, h * w), np.float32)
+        p[: raw.shape[0]] = raw
+        p = p.reshape(N_CLASSES, h, w)
         if SMOOTH > 1:
             p = np.stack([uniform_filter(c, SMOOTH, mode="reflect") for c in p])
         return p
@@ -129,9 +132,11 @@ class SpectralModel:
         import lightgbm as lgb
 
         d = json.loads(Path(path).read_text())
-        if d.get("kind") != KIND or d["classes"] != CLASS_KEYS:
+        if d.get("kind") != KIND or not compatible(d["classes"]):
             raise ValueError(f"{path} is not a compatible spectral model")
-        return cls(lgb.Booster(model_str=d["booster"]), d.get("metrics"), d.get("extra"))
+        m = cls(lgb.Booster(model_str=d["booster"]), d.get("metrics"), d.get("extra"))
+        m.n_model_classes = len(d["classes"])
+        return m
 
     @property
     def info(self) -> dict:

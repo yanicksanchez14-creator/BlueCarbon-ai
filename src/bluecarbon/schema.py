@@ -27,12 +27,31 @@ CLASSES: tuple[HabitatClass, ...] = (
     HabitatClass(3, "seagrass", "Seagrass", "#14a3a0", True),
     HabitatClass(4, "tidal_flat", "Tidal flat / bare", "#c07a2c", False),
     HabitatClass(5, "other_land", "Other land", "#8b9199", False),
+    # Inland (non-tidal) marsh and swamp. Stores carbon but is not blue carbon, so it is mapped
+    # and reported separately and excluded from the blue carbon totals.
+    HabitatClass(6, "freshwater", "Freshwater wetland", "#a0529b", False),
 )
 
 N_CLASSES = len(CLASSES)
 CLASS_KEYS = [c.key for c in CLASSES]
 BLUE_CARBON_KEYS = [c.key for c in CLASSES if c.blue_carbon]
 KEY_TO_ID = {c.key: c.id for c in CLASSES}
+
+
+def compatible(classes: list[str]) -> bool:
+    """Older models trained on a prefix of the current schema still load (missing classes get p=0)."""
+    return list(classes) == CLASS_KEYS[: len(classes)]
+
+
+def pad_confusion(cm):
+    import numpy as np
+
+    cm = np.asarray(cm)
+    if cm.shape[0] >= N_CLASSES:
+        return cm
+    out = np.zeros((N_CLASSES, N_CLASSES), cm.dtype)
+    out[: cm.shape[0], : cm.shape[1]] = cm
+    return out
 
 
 def class_by_key(key: str) -> HabitatClass:

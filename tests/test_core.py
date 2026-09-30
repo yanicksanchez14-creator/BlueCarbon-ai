@@ -57,8 +57,8 @@ def test_confusion_and_summary():
 
 
 def test_error_adjusted_area_perfect_map():
-    cm = np.diag([100, 50, 0, 0, 20, 30])
-    mapped = np.array([1000, 500, 0, 0, 200, 300])
+    cm = np.diag([100, 50, 0, 0, 20, 30, 0])
+    mapped = np.array([1000, 500, 0, 0, 200, 300, 0])
     adj = error_adjusted_area(cm, mapped, 0.01)
     assert adj["water"]["adjusted_ha"] == pytest.approx(10.0)
     assert adj["water"]["ci95_ha"] == pytest.approx(0.0)
@@ -68,7 +68,7 @@ def test_error_adjusted_area_corrects_commission():
     # half of what the map calls mangrove is really water
     cm = np.zeros((N_CLASSES, N_CLASSES))
     cm[0, 0], cm[0, 1], cm[1, 1] = 100, 50, 50
-    mapped = np.array([1000, 1000, 0, 0, 0, 0])
+    mapped = np.array([1000, 1000, 0, 0, 0, 0, 0])
     adj = error_adjusted_area(cm, mapped, 1.0)
     assert adj["mangrove"]["adjusted_ha"] == pytest.approx(500)
     assert adj["water"]["adjusted_ha"] == pytest.approx(1500)

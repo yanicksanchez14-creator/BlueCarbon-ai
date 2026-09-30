@@ -55,7 +55,7 @@ def predict_array(model: nn.Module, norm: Normalizer, bands: np.ndarray, tile: i
             prob = prob / 3
         prob = prob.cpu().numpy()
         for (y, x), p in zip(cs, prob, strict=True):
-            acc[:, y : y + tile, x : x + tile] += p * win
+            acc[: p.shape[0], y : y + tile, x : x + tile] += p * win
             wsum[y : y + tile, x : x + tile] += win
         if progress:
             progress(min(1.0, (i + batch) / len(coords)))

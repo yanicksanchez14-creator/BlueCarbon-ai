@@ -321,7 +321,9 @@ def list_sites() -> dict[str, Path]:
 
 def best_areas(report: dict) -> dict[str, float]:
     adj = report.get("error_adjusted_areas_ha")
-    return {k: (adj[k]["adjusted_ha"] if adj else report["areas_ha"][k]) for k in CLS}
+    if adj:
+        return {k: adj[k]["adjusted_ha"] if k in adj else 0.0 for k in CLS}
+    return {k: report["areas_ha"].get(k, 0.0) for k in CLS}
 
 
 def range_bar(p05: float, mean: float, p95: float) -> str:
@@ -534,6 +536,10 @@ def summary_html(meta: dict, report: dict) -> str:
         pts.append(("What's next", "This map comes from the pilot model, trained on hand-labelled data from this bay. "
                                   "The full BlueCarbon-AI model trains on 11 coastal sites on four continents so it "
                                   "works on coastlines it has never seen, including mangrove forests."))
+    if a.get("freshwater", 0) >= 0.05:
+        pts.insert(2 if len(pts) >= 2 else len(pts), ("Freshwater wetland",
+                    f"{fmt(a['freshwater'], 1)} hectares of inland marsh or swamp. It stores carbon too, but it is not "
+                    "tidal, so it is shown on the map and not counted as blue carbon."))
     pts.append(("Fine print", "Carbon values are IPCC global averages for each habitat. Selling real carbon credits "
                               "would require on-site soil measurements."))
     rows = "".join(f'<div class="bc-sumrow"><div class="k">{k}</div><div class="v">{v}</div></div>' for k, v in pts)
@@ -975,7 +981,8 @@ products are least reliable. Local survey polygons (for example eelgrass surveys
 <table class="bc-table"><thead><tr><th>Class</th><th>Source</th><th>Rule</th></tr></thead><tbody>
 <tr><td>Open water · Other land</td><td>ESA WorldCover 2021 (10 m)</td><td>Classes 80 · 10–60, 100</td></tr>
 <tr><td>Mangrove</td><td>ESA WorldCover 2021</td><td>Class 95</td></tr>
-<tr><td>Salt marsh</td><td>ESA WorldCover + NASADEM</td><td>Herbaceous wetland (90) below 5 m elevation</td></tr>
+<tr><td>Salt marsh</td><td>ESA WorldCover + Murray et al. tidal wetlands + NASADEM</td><td>Herbaceous, grass or shrub cover inside the tidal zone, below 5 m</td></tr>
+<tr><td>Freshwater wetland</td><td>ESA WorldCover + Murray et al. tidal wetlands</td><td>Herbaceous wetland (90) outside the tidal zone. Mapped, but not counted as blue carbon</td></tr>
 <tr><td>Tidal flat</td><td>Murray et al., global intertidal</td><td>Tidal flat classification</td></tr>
 <tr><td>Seagrass</td><td>Allen Coral Atlas benthic map</td><td>Seagrass class (tropical coverage)</td></tr>
 </tbody></table>
