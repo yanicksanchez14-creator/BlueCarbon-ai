@@ -26,5 +26,5 @@ jobs:
         run: ruff check src tests app scripts
       - name: Test
         run: pytest -q -rf --tb=short
-      - name: Pilot model loads
-        run: python -c "from bluecarbon.predictors import load_predictor; load_predictor('models/pilot_spectral_mission_bay_2018.json')"
+      - name: Deployed model loads
+        run: python -c "from bluecarbon.predictors import load_predictor; load_predictor('models/' + open('models/current.txt').read().strip())"
