@@ -1,133 +1,119 @@
 # BlueCarbon-AI
 
+**Mapping the coastal ecosystems that store carbon (mangroves, salt marshes and seagrass meadows) from
+satellite imagery with machine learning, and estimating how much carbon they hold.**
+
+[**Live demo →**](https://bluecarbon-ai.streamlit.app)
+
 [![CI](https://github.com/yanicksanchez14-creator/bluecarbon-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/yanicksanchez14-creator/bluecarbon-ai/actions/workflows/ci.yml)
-[![Live demo](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://bluecarbon-ai.streamlit.app)
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/yanicksanchez14-creator/bluecarbon-ai/blob/main/notebooks/train_colab.ipynb)
 ![Python](https://img.shields.io/badge/python-3.10%E2%80%933.12-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-**Deep-learning maps of blue carbon ecosystems (mangrove, salt marsh and seagrass) from Sentinel-2
-satellite imagery, with carbon stock and sequestration estimates that show their uncertainty.**
+![Mission Bay: satellite image, false-color infrared, and the BlueCarbon-AI habitat map](docs/img/mission_bay_hero.png)
 
-Coastal wetlands store carbon per hectare several times faster than terrestrial forests, and they are
-being lost fast. BlueCarbon-AI goes from a map rectangle to a habitat map and a carbon report:
+## The problem
 
-```
-draw an area ─► Sentinel-2 composite ─► U-Net segmentation ─► error-adjusted areas ─► IPCC Tier 1 carbon ± uncertainty
-```
+Coastal wetlands ("blue carbon" ecosystems) capture carbon up to several times faster per hectare than
+land forests and keep it locked in their soils for centuries. They are also disappearing, and
+conservation groups, governments and carbon-credit projects need to know **where they are, how large
+they are, and how much carbon is at stake**. Mapping them by hand from imagery is slow and doesn't
+scale.
 
-![Mission Bay habitat map](docs/img/mission_bay_hero.png)
+## What BlueCarbon-AI does
+
+1. **Pulls free satellite imagery.** It builds a cloud-free Sentinel-2 composite for any coastline and
+   season through Google Earth Engine.
+2. **Maps habitats automatically.** A trained model labels every 10 × 10 m pixel as open water,
+   mangrove, salt marsh, seagrass, tidal flat or other land.
+3. **Estimates carbon with honest uncertainty.** Habitat areas are corrected for the model's known
+   error rates, then converted to stored carbon and yearly uptake using IPCC reference values, reported
+   as a likely range rather than a single number.
+4. **Serves it in a web app.** Anyone can explore mapped sites, switch between satellite, false-color and
+   habitat views, and read a plain-language summary of the results.
 
 ## Highlights
 
-- **End-to-end geospatial pipeline.** Earth Engine → Cloud Score+ masking → seasonal composites → tiled
-  download of any area size in the local UTM zone. It runs from one CLI and one YAML config.
-- **Reference labels you can defend.** Labels are fused from ESA WorldCover, the Murray global
-  intertidal maps and the Allen Coral Atlas across **11 sites on 4 continents**, rather than drawn by
-  hand for a single bay.
-- **Evaluation that can't cheat.** Chips never overlap, whole 5 km blocks go to a single split, and two
-  entire estuaries are held out for testing. Metrics are per-class IoU/F1, not headline pixel accuracy.
-- **Two model families, best one wins.** A spectral LightGBM model with water-column features and a U-Net /
-  ResNet-34. `bluecarbon train --kind both` trains both and keeps whichever scores higher on the blue carbon classes.
-- **Honest carbon numbers.** Areas are corrected for map bias with the Olofsson et al. (2014) estimator,
-  and IPCC Tier 1 coefficients are run through Monte Carlo sampling to give 90% intervals. Credit value
-  is based on sequestration, not standing stock.
-- **Live web app.** Explore mapped sites with no login, or (with Earth Engine credentials) map any
-  coastline on demand and download the GeoTIFF + report.
-- **Engineering.** Installable package, typed config, self-describing model checkpoints, pytest suite
-  covering an offline end-to-end run, and GitHub Actions CI.
+- **End-to-end geospatial ML pipeline.** Earth Engine ingestion, Cloud Score+ cloud masking, seasonal
+  median composites, and tiled download of any area size in the correct map projection. One CLI and one
+  YAML config drive every stage.
+- **Trained on published scientific maps.** Reference labels are fused from ESA WorldCover, the Murray
+  et al. global tidal-flat maps and the Allen Coral Atlas across **11 coastal sites on four continents**.
+- **Evaluation designed not to cheat.** Training tiles never overlap, whole 5 km blocks go to one data
+  split, and entire estuaries are held out, so scores reflect performance on coastlines the model has
+  never seen.
+- **Two model families, the best one wins.** A gradient-boosted (LightGBM) spectral model with
+  water-column features, and a U-Net deep neural network (ResNet-34 encoder). The pipeline trains both
+  and keeps whichever maps blue carbon habitats more accurately.
+- **Carbon accounting with uncertainty.** Areas are bias-corrected (Olofsson et al., 2014), and carbon is
+  estimated with 5,000-draw Monte Carlo sampling over IPCC Tier 1 coefficient ranges.
+- **Production engineering.** Installable Python package, typed configuration, self-describing model
+  files, an automated test suite that runs the full pipeline offline, and GitHub Actions CI.
 
-## Results
+## How it works
 
-### Pilot (shipping in the demo today)
-The pilot is trained on the original hand-labelled Mission Bay scene and evaluated with
-leave-one-block-out **spatial** cross-validation, so every score comes from an area the model never saw.
-Switching from a U-Net to a spectral gradient-boosted model with water-column features raised salt
-marsh from 0.13 to 0.72 IoU and seagrass from 0.00 to 0.52 ([`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md)).
+```
+Sentinel-2 imagery ──► cloud masking + seasonal composite ──► 10 bands + 9 spectral indices
+                                                                        │
+ESA WorldCover · tidal-flat maps · Allen Coral Atlas ──► fused labels ──┤
+                                                                        ▼
+                                             LightGBM spectral model  /  U-Net  (best one kept)
+                                                                        │
+                                   habitat map ──► error-corrected areas ──► carbon stored & absorbed per year
+```
 
-| Class | U-Net pilot | **Spectral model (shipped)** |
-|---|---:|---:|
-| Salt marsh | 0.13 | **0.72** |
-| Seagrass | 0.00 | **0.52** |
-| Open water | 0.92 | **0.99** |
-| Other land | 0.95 | **0.98** |
-| **mIoU** | 0.50 | **0.80** |
+The full write-up, with data sources, model details, the carbon method and limitations, is in
+[`docs/METHODOLOGY.md`](docs/METHODOLOGY.md).
 
-[`docs/AUDIT.md`](docs/AUDIT.md) covers what v1 got wrong and how v2 fixes it.
+## Tech stack
 
-### v2 multi-site model
-Train it yourself in about an hour on a free Colab GPU: [`notebooks/train_colab.ipynb`](notebooks/train_colab.ipynb).
-The notebook writes held-out test metrics, per-site scores and a confusion matrix, and exports new
-demo sites (Mission Bay 2018→2024 change, Moreton Bay, Tampa Bay).
+**Python** · PyTorch · segmentation-models-pytorch · LightGBM · Google Earth Engine API · Rasterio / GDAL ·
+NumPy / SciPy · Streamlit · Folium / Leaflet · Pydantic · Typer · pytest · GitHub Actions
 
-## Quick start
+## Run it locally
 
 ```bash
 git clone https://github.com/yanicksanchez14-creator/bluecarbon-ai.git && cd bluecarbon-ai
 pip install -e ".[gee,app,dev]"
 
-streamlit run app/streamlit_app.py          # demo app, no credentials needed
-pytest -q                                   # offline end-to-end test on synthetic scenes
+streamlit run app/streamlit_app.py      # the web app, using the bundled demo sites
+pytest -q                               # offline end-to-end tests
 ```
 
-Full pipeline (needs an [Earth Engine](https://earthengine.google.com/) project, set `project:` in `configs/default.yaml`):
-
-```bash
-earthengine authenticate
-bluecarbon fetch                            # imagery + fused labels for every site in configs/sites.yaml
-bluecarbon chips                            # leakage-free spatial split
-bluecarbon train                            # -> runs/default/model/{model.pt, metrics.json}
-
-# map any coastline and get a carbon report
-bluecarbon scene --bbox -117.265 --bbox 32.745 --bbox -117.185 --bbox 32.81 \
-                 --start 2024-05-01 --end 2024-09-30 -m runs/default/model/model.pt --name mission_bay
-bluecarbon case-study -m runs/default/model/model.pt   # 2018 -> 2024 change analysis
-```
+The full pipeline (download, label, train, map) runs with `bluecarbon fetch`, `chips`, `train` and `scene`.
+It needs a Google Earth Engine project, and there's a ready-made GPU notebook in
+[`notebooks/train_colab.ipynb`](notebooks/train_colab.ipynb).
 
 ## Project structure
 
 ```
 src/bluecarbon/
-  gee.py        Earth Engine composites, fused reference labels, tiled download
-  features.py   bands -> reflectance + NDVI / NDWI / MNDWI / NDMI, normalization
-  labels.py     boundary buffering, survey-polygon overrides
-  tiling.py     non-overlapping chips, spatial-block splits
-  model.py      smp models + self-describing checkpoints
-  spectral.py   LightGBM spectral-context model (water-column ratios, 30/90 m context)
-  predictors.py one interface over both model types
-  train.py      Dice+CE, class weighting, AMP, early stopping, held-out evaluation
-  predict.py    overlap-blended sliding-window inference + TTA
-  metrics.py    IoU / F1 / kappa, Olofsson error-adjusted area
-  carbon.py     IPCC Tier 1 stocks & sequestration, Monte Carlo intervals
-  demo.py       export scenes for the web app
-  cli.py        `bluecarbon` command
-app/            Streamlit demo
-configs/        pipeline + site definitions
-notebooks/      Colab training notebook
-docs/           methodology, v1 audit, figures
+  gee.py         Earth Engine imagery, fused reference labels, tiled download
+  features.py    spectral bands and indices, normalization
+  spectral.py    LightGBM spectral-context model
+  model.py       U-Net models and checkpoints
+  train.py       deep-learning training loop
+  predict.py     whole-scene inference
+  tiling.py      leakage-free spatial train / validation / test split
+  metrics.py     accuracy metrics and error-corrected area estimation
+  carbon.py      carbon stock and sequestration with Monte Carlo uncertainty
+  cli.py         `bluecarbon` command-line tool
+app/             Streamlit web app
+configs/         pipeline settings and the 11 study sites
+tests/           automated tests
+docs/            methodology and figures
 ```
 
-## Deploy the live demo
+## Limitations
 
-1. On [share.streamlit.io](https://share.streamlit.io), click **Create app**, then pick this repo, branch
-   `main`, and main file `app/streamlit_app.py`. Set the URL to `bluecarbon-ai`.
-2. *(Optional, enables "Analyze an area".)* In Google Cloud, create a service account in the Earth
-   Engine project, grant it **Earth Engine Resource Viewer** + **Service Usage Consumer**, register it for
-   Earth Engine, create a JSON key, and paste it as the `GEE_SERVICE_ACCOUNT` secret
-   (see `.streamlit/secrets.example.toml`).
-3. *(After training v2.)* Attach `model.pt` to a GitHub Release and set `MODEL_URL` to its download URL.
+Carbon figures use IPCC global averages per habitat and are suited to screening and prioritizing sites,
+not to issuing carbon credits, which requires field measurements. Seagrass is the hardest habitat to see
+from space because it grows underwater, and tides change what is visible in intertidal areas.
 
-## Methodology & limitations
+## Data credits
 
-See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md). In short: Tier 1 carbon values are global averages
-and give order-of-magnitude estimates. Temperate seagrass needs local survey labels, and tides affect
-what the satellite sees in intertidal zones. **This is a research tool, not a carbon-credit
-methodology.**
-
-## Citation / data credits
-
-Sentinel-2 (ESA Copernicus) · Cloud Score+ (Google) · ESA WorldCover 2021 · Murray et al. global
-intertidal · Allen Coral Atlas · NASADEM · IPCC 2013 Wetlands Supplement.
+Sentinel-2 (ESA Copernicus) · Cloud Score+ (Google) · ESA WorldCover 2021 · Murray et al. global tidal
+flats · Allen Coral Atlas · NASADEM · IPCC 2013 Wetlands Supplement.
 
 ---
-Built by **Yanick Sanchez**. v1 (2025) was an independent first attempt, and v2 (2026) is a ground-up rebuild.
+
+**Yanick Sanchez** · Independent project, 2025–2026 · [MIT License](LICENSE)
