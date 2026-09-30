@@ -366,7 +366,8 @@ def model_desc(model: dict) -> str:
     if model.get("kind") == "spectral-lgbm":
         return ("Gradient-boosted decision trees (LightGBM) reading each pixel's 10 satellite bands, 9 plant and water "
                 "indices, and the surrounding 30 m and 90 m neighbourhood")
-    return f"{model['arch']} neural network · {model['encoder']} encoder · satellite bands plus elevation, tide and latitude"
+    ctx = " plus elevation and tidal context" if model.get("uses_context") else ""
+    return f"{model['arch']} neural network · {model['encoder']} encoder · satellite bands and plant / water indices{ctx}"
 
 
 def model_panel(model: dict | None) -> None:

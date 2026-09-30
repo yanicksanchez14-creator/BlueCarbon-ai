@@ -184,9 +184,9 @@ def train_spectral(records, out_dir: str | Path, per_class_per_chip: int = 400, 
         f"{np.bincount(y, minlength=N_CLASSES).tolist()}")
     model = SpectralModel(uses_ancillary=use_anc).fit(X, y, n_estimators=n_estimators)
 
-    def evaluate(split):
+    def evaluate(split, site=None):
         cm = np.zeros((N_CLASSES, N_CLASSES), np.int64)
-        for r in (r for r in records if r.split == split):
+        for r in (r for r in records if r.split == split and (site is None or r.site == site)):
             img, lab = load_chip(r.path)
             pred, _ = model.predict(img, anc=load_chip_anc(r.path) if use_anc else None)
             cm += confusion(lab, pred)
@@ -199,7 +199,9 @@ def train_spectral(records, out_dir: str | Path, per_class_per_chip: int = 400, 
             results[split] = summarize(cm)
             results[f"{split}_confusion"] = cm.tolist()
             log(f"spectral {split}: mIoU {results[split]['mIoU']}  IoU {results[split]['iou']}")
-    model.metrics = {k: results.get(k) for k in ("val", "test", "test_confusion")}
+    results["test_per_site"] = {site: summarize(evaluate("test", site))
+                                for site in sorted({r.site for r in records if r.split == "test"})}
+    model.metrics = {k: results.get(k) for k in ("val", "test", "test_confusion", "test_per_site")}
     model.save(out / "spectral.json")
     (out / "spectral_metrics.json").write_text(json.dumps(results, indent=2))
     return results

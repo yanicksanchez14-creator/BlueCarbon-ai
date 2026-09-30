@@ -91,7 +91,7 @@ def train(cfg: Config, records: list[ChipRecord], out_dir: str | Path, log=print
     device = resolve_device(cfg.train.device)
     use_anc = cfg.model.use_ancillary and chips_have_ancillary(records)
     features = FEATURE_NAMES_ANC if use_anc else FEATURE_NAMES
-    log(f"inputs: {len(features)} features ({'with' if use_anc else 'without'} elevation / tide / latitude)")
+    log(f"inputs: {len(features)} features ({'with' if use_anc else 'without'} elevation / tide)")
     norm = fit_normalizer(tr, use_anc=use_anc)
     freq = class_frequencies(tr)
     w = class_weights(freq, cfg.train.class_weighting)

@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from .features import Normalizer, compute_features, valid_mask
+from .features import N_ANC_FEATURES, Normalizer, compute_features, valid_mask
 from .schema import IGNORE_INDEX, N_CLASSES
 from .tiling import ChipRecord
 
@@ -42,7 +42,7 @@ class ChipDataset(Dataset):
         x = self.norm(compute_features(img, anc=anc))
         y = lab.astype(np.int64)
         if self.augment:
-            x, y = _augment(x, y, n_spectral=x.shape[0] - (3 if self.use_anc else 0))
+            x, y = _augment(x, y, n_spectral=x.shape[0] - (N_ANC_FEATURES if self.use_anc else 0))
         return torch.from_numpy(np.ascontiguousarray(x)), torch.from_numpy(np.ascontiguousarray(y))
 
 
@@ -55,7 +55,7 @@ def _augment(x: np.ndarray, y: np.ndarray, rng=np.random, n_spectral: int | None
     x, y = np.rot90(x, k, axes=(1, 2)), np.rot90(y, k)
     if rng.rand() < 0.5:
         x, y = x[:, :, ::-1], y[:, ::-1]
-    n = x.shape[0] if n_spectral is None else n_spectral  # never jitter elevation / tide / latitude
+    n = x.shape[0] if n_spectral is None else n_spectral  # never jitter elevation / tide
     gain = np.ones((x.shape[0], 1, 1), np.float32)
     bias = np.zeros((x.shape[0], 1, 1), np.float32)
     gain[:n] += rng.normal(0, 0.05, size=(n, 1, 1)).astype(np.float32)

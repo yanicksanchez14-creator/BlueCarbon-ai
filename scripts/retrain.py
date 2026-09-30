@@ -28,6 +28,48 @@ def best_model() -> Path:
     return WORK / "model" / name
 
 
+BLUE = ("mangrove", "saltmarsh", "seagrass")
+
+
+def held_out_check() -> str:
+    """Per-site scores on the estuaries never used in training, plus mapped vs reference area.
+
+    The pooled test score is dominated by test blocks inside training sites, so it can look good
+    while a held-out coastline fails. This table is the check to read before publishing.
+    """
+    import yaml
+
+    sites = [s["name"] for s in yaml.safe_load(Path("configs/sites.yaml").read_text())["sites"] if s.get("role") == "test"]
+    lines = ["HELD-OUT ESTUARIES (never used in training)", ""]
+    for f, label in (("spectral_metrics.json", "spectral"), ("metrics.json", "unet")):
+        p = WORK / "model" / f
+        if not p.exists():
+            continue
+        per = json.loads(p.read_text()).get("test_per_site", {})
+        lines.append(f"{label:9s} IoU      " + "  ".join(f"{c:>9s}" for c in BLUE))
+        for s in sites:
+            iou = per.get(s, {}).get("iou", {})
+            lines.append(f"  {s:22s}" + "  ".join(f"{'-' if iou.get(c) is None else f'{iou[c]:.2f}':>9s}" for c in BLUE))
+        lines.append("")
+    lines.append("mapped / reference area (ha)")
+    warn = []
+    for s in sites:
+        meta_p, site_p = Path("demo_data") / s / "meta.json", WORK / "sites" / s / "meta.json"
+        if not (meta_p.exists() and site_p.exists()):
+            continue
+        mapped = json.loads(meta_p.read_text())["report"]["areas_ha"]
+        ref = {k: v / 100 for k, v in (json.loads(site_p.read_text()).get("label_px") or {}).items()}
+        row = []
+        for c in BLUE:
+            m, r = mapped.get(c, 0), ref.get(c, 0)
+            row.append(f"{m:7.0f}/{r:<7.0f}")
+            if r > 100 and not 0.33 < m / r < 3:
+                warn.append(f"  WARNING {s}: {c} mapped {m:.0f} ha vs reference {r:.0f} ha")
+        lines.append(f"  {s:22s}" + "  ".join(row))
+    lines += [""] + (warn or ["  all held-out blue carbon areas within 3x of reference"])
+    return "\n".join(lines)
+
+
 def main() -> None:
     skip_train = "--skip-train" in sys.argv
     if not skip_train:
@@ -65,6 +107,9 @@ def main() -> None:
     labels = {p.parent.name: json.loads(p.read_text()).get("label_px") for p in (WORK / "sites").glob("*/meta.json")}
     (out / "label_summary.json").write_text(json.dumps(labels, indent=2))
     shutil.copytree("demo_data", out / "demo_data")
+    check = held_out_check()
+    (out / "held_out_check.txt").write_text(check + "\n")
+    print("\n" + check)
     shutil.make_archive("results", "zip", ".", str(out))
     print("\nDone: results.zip. Download it with: from google.colab import files; "
           "files.download('results.zip')")

@@ -27,10 +27,14 @@ N_FEATURES = len(FEATURE_NAMES)
 #   elevation  NASADEM metres
 #   tidal_prob Murray et al. tidal wetland probability, 0-100
 #   abs_lat    |latitude| x 100
-# They carry what a single image cannot show: whether the tide reaches a pixel (salt marsh vs
-# freshwater marsh) and how far from the equator it is (mangrove vs salt marsh).
+# Elevation and tidal probability carry what a single image cannot show: whether the tide reaches
+# a pixel (salt marsh vs freshwater marsh). Latitude is stored but is NOT a model input: with a
+# handful of training sites the model used it as a site ID ("no mangrove north of 25 deg") and
+# missed the mangroves of held-out Tampa Bay and Moreton Bay. The mangrove latitude range is
+# applied as an explicit rule instead (priors.py).
 ANCILLARY_BANDS: list[str] = ["elevation", "tidal_prob", "abs_lat"]
-ANCILLARY_FEATURES: list[str] = ["ELEV", "TIDAL", "ABSLAT"]
+ANCILLARY_FEATURES: list[str] = ["ELEV", "TIDAL"]
+N_ANC_FEATURES = len(ANCILLARY_FEATURES)
 FEATURE_NAMES_ANC: list[str] = FEATURE_NAMES + ANCILLARY_FEATURES
 
 
@@ -38,8 +42,7 @@ def ancillary_features(anc: np.ndarray) -> np.ndarray:
     a = np.nan_to_num(anc.astype(np.float32))
     elev = np.clip(a[0], -10, 60) / 60.0
     tidal = np.clip(a[1], 0, 100) / 100.0
-    lat = np.clip(a[2], 0, 9000) / 9000.0
-    return np.stack([elev, tidal, lat]).astype(np.float32)
+    return np.stack([elev, tidal]).astype(np.float32)
 
 
 def _nd(a: np.ndarray, b: np.ndarray) -> np.ndarray:

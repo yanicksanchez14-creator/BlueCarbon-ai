@@ -19,7 +19,7 @@ class Predictor:
 
     def _check_anc(self, anc):
         if self.needs_ancillary and anc is None:
-            raise ValueError("This model needs the ancillary layers (elevation, tidal probability, latitude); "
+            raise ValueError("This model needs the ancillary layers (elevation, tidal probability); "
                              "pass anc= or put ancillary.tif next to the image")
         return anc if self.needs_ancillary else None
 

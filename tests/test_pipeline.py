@@ -107,6 +107,7 @@ def test_ancillary_inputs(tmp_path):
     assert pr.needs_ancillary
     _, _, ck = load_checkpoint(tmp_path / "unet" / "model.pt")
     assert ck["features"] == FEATURE_NAMES_ANC
+    assert "ABSLAT" not in FEATURE_NAMES_ANC  # latitude is a rule (priors.py), never a model input
 
     train_spectral(recs, tmp_path / "spec", per_class_per_chip=100, n_estimators=20, log=lambda *_: None)
     sp = load_predictor(tmp_path / "spec" / "spectral.json")
