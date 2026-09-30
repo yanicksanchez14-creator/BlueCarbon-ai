@@ -837,8 +837,26 @@ def secret(name: str) -> str | None:
     return v
 
 
-@st.cache_resource
+def _model_signature() -> str:
+    """Changes whenever the model file or the prediction code changes, so a cached model built by
+    older code is never reused after a redeploy."""
+    import bluecarbon.predictors as bp
+
+    parts = [str(DEFAULT_MODEL), secret("MODEL_URL") or ""]
+    for f in (Path(DEFAULT_MODEL), Path(bp.__file__), Path(bp.__file__).with_name("features.py")):
+        try:
+            parts.append(f"{f.stat().st_mtime_ns}:{f.stat().st_size}")
+        except OSError:
+            pass
+    return "|".join(parts)
+
+
 def get_model():
+    return _load_model(_model_signature())
+
+
+@st.cache_resource(max_entries=1)
+def _load_model(signature: str):
     from bluecarbon.predictors import load_predictor
 
     url, path = secret("MODEL_URL"), DEFAULT_MODEL
@@ -923,7 +941,7 @@ with tab_analyze:
                 gee.download(gee.s2_composite(region, str(start), str(end), CFG), bbox, tmp / "image.tif", CFG,
                              "uint16", 0, S2_BANDS, progress=bar.progress)
                 anc = None
-                if predictor.needs_ancillary:
+                if getattr(predictor, "needs_ancillary", False):
                     st.write("Fetching elevation, tidal and clear-water layers…")
                     gee.download_ancillary(bbox, str(start), str(end), tmp / "ancillary.tif", CFG)
                     with rasterio.open(tmp / "ancillary.tif") as a:
