@@ -311,8 +311,17 @@ def outline(m, bounds):
     folium.Rectangle([[s, w], [n, e]], color="#ffffff", weight=1.2, fill=False, dash_array="4 4", opacity=0.8).add_to(m)
 
 
-@st.cache_data
+def _demo_signature() -> str:
+    """Changes whenever demo pages are added, removed or regenerated (invalidates the caches below)."""
+    return "|".join(f"{p.parent.name}:{p.stat().st_mtime_ns}" for p in sorted(DEMO_DIR.glob("*/meta.json")))
+
+
 def list_sites() -> dict[str, Path]:
+    return _list_sites(_demo_signature())
+
+
+@st.cache_data
+def _list_sites(sig: str) -> dict[str, Path]:
     out = {}
     for f in sorted(DEMO_DIR.glob("*/meta.json")):
         out[json.loads(f.read_text())["title"]] = f.parent
@@ -713,8 +722,12 @@ def change_section(meta: dict) -> None:
                 unsafe_allow_html=True)
 
 
-@st.cache_data
 def site_metas() -> dict[str, dict]:
+    return _site_metas(_demo_signature())
+
+
+@st.cache_data
+def _site_metas(sig: str) -> dict[str, dict]:
     return {t: json.loads((d / "meta.json").read_text()) for t, d in list_sites().items()}
 
 
