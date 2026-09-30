@@ -22,9 +22,10 @@ or made with index thresholds:
 |---|---|
 | Water, other land | ESA WorldCover 2021 (10 m) |
 | Mangrove | ESA WorldCover class 95 |
-| Salt marsh | WorldCover herbaceous wetland (90) below 5 m elevation (NASADEM) |
+| Salt marsh | WorldCover herbaceous, grass or shrub cover that the GWL_FCS30 wetland map (Zhang et al. 2023) classes as salt marsh. Tidal-zone vegetation it calls non-wetland is left unlabelled |
+| Freshwater wetland | WorldCover herbaceous wetland outside the tidal zone, or that GWL_FCS30 calls swamp / marsh |
 | Tidal flat | Murray et al. global intertidal change |
-| Seagrass | Allen Coral Atlas benthic map (tropics); local surveys can be added as polygon overrides |
+| Seagrass | Allen Coral Atlas benthic map (tropics); local surveys can be added as polygons. At sites with seagrass that no map covers (e.g. Florida Bay, Tampa Bay), water outside the Atlas footprint is left unlabelled rather than taught as open water |
 
 Pixels within 1 px of a class boundary are ignored, because edges are where global products are
 least reliable.
@@ -72,5 +73,6 @@ site-measured stocks.
 - Olofsson, P. et al. (2014). Good practices for estimating area and assessing accuracy of land change. *RSE* 148.
 - Zanaga, D. et al. (2022). ESA WorldCover 10 m 2021 v200.
 - Murray, N. J. et al. (2022). High-resolution mapping of losses and gains of Earth's tidal wetlands. *Science* 376.
+- Zhang, X. et al. (2023). GWL_FCS30: a global 30 m wetland map with a fine classification system. *ESSD* 15.
 - Allen Coral Atlas (2022). Imagery, maps and monitoring of the world's tropical coral reefs.
 - Pasquarella, V. et al. (2023). Cloud Score+: comprehensive cloud and cloud-shadow detection for Sentinel-2.

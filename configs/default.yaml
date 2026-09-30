@@ -28,6 +28,11 @@ labels:
   tidal_wetland_min_prob: 50
   # Extra seagrass polygons (Earth Engine FeatureCollection ids), e.g. regional eelgrass surveys.
   seagrass_vectors: []
+  # GWL_FCS30 global 30 m wetland map (Zhang et al. 2023), which has an explicit salt marsh class
+  # (186; 181 swamp, 182 marsh = freshwater). Salt marsh is labelled where it agrees with
+  # WorldCover vegetation; tidal-zone vegetation it does NOT call wetland is left unlabelled.
+  wetland_map: projects/sat-io/open-datasets/GWL_FCS30
+  wetland_year: 2021
   dem: NASA/NASADEM_HGT/001
   # Optional user polygons (GeoPackage/GeoJSON with an integer `class_id` column following
   # src/bluecarbon/schema.py). These override everything else, e.g. local eelgrass surveys.

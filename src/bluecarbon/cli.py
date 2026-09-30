@@ -44,8 +44,9 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
             typer.echo(f"[{site['name']}] ancillary layers ...")
             gee.download(gee.ancillary_image(cfg), site["bbox"], d / "ancillary.tif", cfg, "int16", None,
                          ["elevation", "tidal_prob", "abs_lat"])
-        if labels_only and (d / "meta.json").exists() and "label_sources" in json.loads((d / "meta.json").read_text()):
-            typer.echo(f"[{site['name']}] labels already rebuilt, skipping (delete meta.json to redo)")
+        if labels_only and (d / "meta.json").exists() and \
+                gee.LABEL_VERSION in json.loads((d / "meta.json").read_text()).get("label_sources", []):
+            typer.echo(f"[{site['name']}] labels already up to date, skipping (delete meta.json to redo)")
             continue
         region = gee.bbox_geometry(site["bbox"])
         if not (labels_only and (d / "image.tif").exists()):
@@ -58,7 +59,7 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
                          ["elevation", "tidal_prob", "abs_lat"])
         typer.echo(f"[{site['name']}] labels ...")
         info: dict = {}
-        gee.download(gee.reference_labels(region, cfg, info), site["bbox"], d / "label.tif", cfg, "uint8", 255,
+        gee.download(gee.reference_labels(region, cfg, info, site.get("seagrass_unmapped", False)), site["bbox"], d / "label.tif", cfg, "uint8", 255,
                      ["label"])
         hist = postprocess_label_file(d / "label.tif", cfg.labels.boundary_ignore_px, cfg.labels.overrides)
         (d / "meta.json").write_text(json.dumps({**site, "year": year, "label_px": hist, **info}, indent=2))

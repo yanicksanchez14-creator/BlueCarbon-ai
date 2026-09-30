@@ -27,6 +27,8 @@ class LabelsCfg(BaseModel):
     tidal_wetland_band: str = "twprobability_end"
     tidal_wetland_min_prob: float = 50
     seagrass_vectors: list[str] = []
+    wetland_map: str = "projects/sat-io/open-datasets/GWL_FCS30"
+    wetland_year: int = 2021
     dem: str = "NASA/NASADEM_HGT/001"
     overrides: str | None = None
     boundary_ignore_px: int = 1

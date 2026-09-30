@@ -142,21 +142,48 @@ def tidal_zone(cfg: Config):
     return dem.lte(3).And(near_water), "elevation-fallback"
 
 
-def reference_labels(region, cfg: Config, report: dict | None = None):
+LABEL_VERSION = "labels-v4"  # bump when the label rules change, so `fetch --labels-only` rebuilds
+
+
+def wetland_map(cfg: Config):
+    """GWL_FCS30 wetland classes for the label year (0 where unmapped), or None if the asset is unavailable."""
+    lc = cfg.labels
+    try:
+        col = ee.ImageCollection(lc.wetland_map)
+        yr = col.filter(ee.Filter.calendarRange(lc.wetland_year, lc.wetland_year, "year"))
+        if yr.size().getInfo() == 0:
+            print(f"[bluecarbon] {lc.wetland_map}: no {lc.wetland_year} image, using the full collection", flush=True)
+            yr = col
+        img = yr.select([0]).mosaic()
+        img.bandNames().getInfo()  # fail here, not mid-download, if the asset is not readable
+        return img.unmask(0).rename("gwl")
+    except Exception as e:
+        print(f"[bluecarbon] wetland map unavailable ({str(e)[:80]}); using the tidal-zone salt marsh rule", flush=True)
+        return None
+
+
+def reference_labels(region, cfg: Config, report: dict | None = None, seagrass_unmapped: bool = False):
     """Fuse published global products into the class schema (uint8, 255 = ignore).
 
     Priority (later overrides earlier):
-      WorldCover base -> Murray tidal flats -> tidal-zone herbaceous vegetation = salt marsh
-      -> WorldCover mangrove -> Allen Coral Atlas / survey-polygon seagrass.
-    Herbaceous wetland outside the tidal zone (e.g. Everglades sawgrass) becomes its own freshwater
-    wetland class, so the model learns to tell it apart from salt marsh.
+      WorldCover base -> Murray tidal flats -> salt marsh -> freshwater marsh -> WorldCover mangrove
+      -> Allen Coral Atlas / survey-polygon seagrass.
+
+    Salt marsh = WorldCover herbaceous / grass / shrub that GWL_FCS30 maps as salt marsh. Tidal-zone
+    vegetation (Murray tidal wetland zone, below 5 m) that GWL does not call salt marsh is labelled
+    only if GWL has no opinion there, and left unlabelled where GWL calls it non-wetland: when the two
+    sources disagree, the pixel is not trained or scored on.
+
+    seagrass_unmapped: the site has seagrass that no reference product covers (e.g. Florida Bay,
+    Tampa Bay). Its water outside the Allen Coral Atlas footprint is left unlabelled instead of
+    being called "water", so the model is not taught that seagrass is open water.
     """
     _require_ee()
     lc = cfg.labels
     wc = ee.ImageCollection(lc.worldcover).first().select("Map")
     ign = IGNORE_INDEX
     k = KEY_TO_ID
-    used = []
+    used = [LABEL_VERSION]
 
     # WorldCover: 10 tree,20 shrub,30 grass,40 crop,50 built,60 bare,70 snow,80 water,90 herb. wetland,
     #             95 mangrove,100 moss/lichen
@@ -174,17 +201,34 @@ def reference_labels(region, cfg: Config, report: dict | None = None):
     tz, tz_src = tidal_zone(cfg)
     used.append(tz_src)
     dem = ee.Image(lc.dem).select("elevation")
-    herb = wc.eq(90).Or(wc.eq(30)).Or(wc.eq(20))
-    marsh = herb.And(tz.unmask(0)).And(dem.lte(lc.marsh_max_elev_m)).And(wc.neq(95))
-    lab = lab.where(marsh, k["saltmarsh"])
-    # herbaceous wetland outside the tidal zone = freshwater marsh (not blue carbon)
-    lab = lab.where(wc.eq(90).And(marsh.Not()), k["freshwater"])
+    herb = wc.eq(90).Or(wc.eq(30)).Or(wc.eq(20)).And(wc.neq(95))
+    tidal_veg = herb.And(tz.unmask(0)).And(dem.lte(lc.marsh_max_elev_m))
+    gwl = wetland_map(cfg)
+    if gwl is not None:
+        used.append("gwl-fcs30")
+        gwl_marsh = gwl.eq(186)
+        gwl_fresh = gwl.eq(181).Or(gwl.eq(182))
+        marsh = herb.And(gwl_marsh).Or(tidal_veg.And(gwl.eq(184)))
+        # tidal-zone vegetation GWL calls non-wetland or freshwater: sources disagree -> ignore
+        lab = lab.where(tidal_veg.And(marsh.Not()), ign)
+        lab = lab.where(marsh, k["saltmarsh"])
+        lab = lab.where(wc.eq(90).And(marsh.Not()).And(tidal_veg.Not().Or(gwl_fresh)), k["freshwater"])
+    else:
+        marsh = tidal_veg
+        lab = lab.where(marsh, k["saltmarsh"])
+        # herbaceous wetland outside the tidal zone = freshwater marsh (not blue carbon)
+        lab = lab.where(wc.eq(90).And(marsh.Not()), k["freshwater"])
     lab = lab.where(wc.eq(95), k["mangrove"])
 
+    aca_footprint = ee.Image(0)
     if _asset_bands(lc.reef_habitat):
         benthic = ee.Image(lc.reef_habitat).select("benthic")
+        aca_footprint = benthic.mask().unmask(0).gt(0)
         lab = lab.where(benthic.eq(lc.seagrass_value), k["seagrass"])
         used.append("allen-coral-atlas")
+    if seagrass_unmapped:
+        lab = lab.where(lab.eq(k["water"]).And(aca_footprint.Not()), ign)
+        used.append("unmapped-seagrass-water-ignored")
     for fc_id in lc.seagrass_vectors:
         try:
             fc = ee.FeatureCollection(fc_id).filterBounds(region)

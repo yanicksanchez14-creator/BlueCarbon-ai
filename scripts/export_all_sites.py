@@ -35,6 +35,11 @@ TITLES = {
     "hinchinbrook_au": ("Hinchinbrook Island", "Queensland, Australia"),
     "chwaka_bay_tz": ("Chwaka Bay", "Zanzibar, Tanzania"),
     "safaga_eg": ("Safaga", "Red Sea, Egypt"),
+    "sapelo_ga": ("Sapelo Island", "Georgia, USA"),
+    "blackwater_md": ("Blackwater, Chesapeake Bay", "Maryland, USA"),
+    "venice_lagoon_it": ("Venice Lagoon", "Veneto, Italy"),
+    "yellow_river_cn": ("Yellow River Delta", "Shandong, China"),
+    "shark_bay_au": ("Shark Bay", "Western Australia"),
 }
 
 
