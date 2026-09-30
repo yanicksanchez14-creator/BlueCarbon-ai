@@ -23,6 +23,24 @@ INDICES: dict[str, tuple[str, str]] = {
 FEATURE_NAMES: list[str] = S2_BANDS + list(INDICES)
 N_FEATURES = len(FEATURE_NAMES)
 
+# Ancillary "context" layers stored alongside the imagery (ancillary.tif, int16):
+#   elevation  NASADEM metres
+#   tidal_prob Murray et al. tidal wetland probability, 0-100
+#   abs_lat    |latitude| x 100
+# They carry what a single image cannot show: whether the tide reaches a pixel (salt marsh vs
+# freshwater marsh) and how far from the equator it is (mangrove vs salt marsh).
+ANCILLARY_BANDS: list[str] = ["elevation", "tidal_prob", "abs_lat"]
+ANCILLARY_FEATURES: list[str] = ["ELEV", "TIDAL", "ABSLAT"]
+FEATURE_NAMES_ANC: list[str] = FEATURE_NAMES + ANCILLARY_FEATURES
+
+
+def ancillary_features(anc: np.ndarray) -> np.ndarray:
+    a = np.nan_to_num(anc.astype(np.float32))
+    elev = np.clip(a[0], -10, 60) / 60.0
+    tidal = np.clip(a[1], 0, 100) / 100.0
+    lat = np.clip(a[2], 0, 9000) / 9000.0
+    return np.stack([elev, tidal, lat]).astype(np.float32)
+
 
 def _nd(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     den = a + b
@@ -31,7 +49,8 @@ def _nd(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return np.clip(out, -1.0, 1.0)
 
 
-def compute_features(bands: np.ndarray, band_names: list[str] | None = None) -> np.ndarray:
+def compute_features(bands: np.ndarray, band_names: list[str] | None = None,
+                     anc: np.ndarray | None = None) -> np.ndarray:
     """(C, H, W) raw S2 bands -> (N_FEATURES, H, W) float32 reflectance + indices.
 
     Accepts either scaled integers (0..10000) or reflectance floats (0..1). NaNs become 0.
@@ -48,7 +67,12 @@ def compute_features(bands: np.ndarray, band_names: list[str] | None = None) -> 
         raise ValueError(f"Missing bands: {missing}")
     refl = np.stack([x[idx[b]] for b in S2_BANDS])
     ind = np.stack([_nd(x[idx[a]], x[idx[b]]) for a, b in INDICES.values()])
-    return np.concatenate([refl, ind]).astype(np.float32)
+    parts = [refl, ind]
+    if anc is not None:
+        if anc.shape[1:] != bands.shape[1:]:
+            raise ValueError(f"ancillary shape {anc.shape} does not match imagery {bands.shape}")
+        parts.append(ancillary_features(anc))
+    return np.concatenate(parts).astype(np.float32)
 
 
 def valid_mask(bands: np.ndarray) -> np.ndarray:

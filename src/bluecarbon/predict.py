@@ -23,11 +23,12 @@ def _window(size: int) -> np.ndarray:
 
 @torch.no_grad()
 def predict_array(model: nn.Module, norm: Normalizer, bands: np.ndarray, tile: int = 256, overlap: int = 64,
-                  tta: bool = True, batch: int = 8, device=None, progress=None) -> tuple[np.ndarray, np.ndarray]:
+                  tta: bool = True, batch: int = 8, device=None, progress=None,
+                  anc: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """(C,H,W) raw S2 bands -> (class map uint8 with 255 = nodata, confidence float32 0..1)."""
     device = device or next(model.parameters()).device
     model.eval()
-    feats = norm(compute_features(bands))
+    feats = norm(compute_features(bands, anc=anc))
     C, H, W = feats.shape
     ph, pw = max(0, tile - H), max(0, tile - W)
     if ph or pw:

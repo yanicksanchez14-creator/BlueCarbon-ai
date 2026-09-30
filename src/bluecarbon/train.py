@@ -13,7 +13,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from .config import Config
-from .data import ChipDataset, class_frequencies, fit_normalizer
+from .data import ChipDataset, chips_have_ancillary, class_frequencies, fit_normalizer, load_chip
+from .features import FEATURE_NAMES, FEATURE_NAMES_ANC
 from .metrics import confusion, summarize
 from .model import build_model, resolve_device, save_checkpoint
 from .schema import IGNORE_INDEX, N_CLASSES
@@ -60,6 +61,21 @@ def evaluate(model: nn.Module, loader: DataLoader, device) -> np.ndarray:
     return cm
 
 
+def rare_class_sampler(records: list[ChipRecord], factor: float):
+    """Draw chips containing seagrass / salt marsh / mangrove more often (at most `factor` x)."""
+    from torch.utils.data import WeightedRandomSampler
+
+    from .schema import BLUE_CARBON_KEYS, KEY_TO_ID
+
+    rare = [KEY_TO_ID[k] for k in BLUE_CARBON_KEYS]
+    weights = []
+    for r in records:
+        _, lab = load_chip(r.path)
+        frac = max(float((lab == c).mean()) for c in rare)
+        weights.append(1.0 + (factor - 1.0) * min(1.0, frac * 20))  # 5% coverage of a rare class -> full boost
+    return WeightedRandomSampler(weights, num_samples=len(records), replacement=True)
+
+
 def train(cfg: Config, records: list[ChipRecord], out_dir: str | Path, log=print) -> dict:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -73,18 +89,23 @@ def train(cfg: Config, records: list[ChipRecord], out_dir: str | Path, log=print
     torch.manual_seed(cfg.chips.seed)
     np.random.seed(cfg.chips.seed)
     device = resolve_device(cfg.train.device)
-    norm = fit_normalizer(tr)
+    use_anc = cfg.model.use_ancillary and chips_have_ancillary(records)
+    features = FEATURE_NAMES_ANC if use_anc else FEATURE_NAMES
+    log(f"inputs: {len(features)} features ({'with' if use_anc else 'without'} elevation / tide / latitude)")
+    norm = fit_normalizer(tr, use_anc=use_anc)
     freq = class_frequencies(tr)
     w = class_weights(freq, cfg.train.class_weighting)
     log(f"train class pixels: {freq.tolist()}  weights: {None if w is None else np.round(w, 2).tolist()}")
 
     t = cfg.train
     kw = dict(batch_size=t.batch_size, num_workers=t.num_workers, pin_memory=device.type == "cuda")
-    dl_tr = DataLoader(ChipDataset(tr, norm, augment=True), shuffle=True, drop_last=len(tr) > t.batch_size, **kw)
-    dl_va = DataLoader(ChipDataset(va, norm), shuffle=False, **kw)
+    sampler = rare_class_sampler(tr, t.rare_oversample) if t.rare_oversample > 1 else None
+    dl_tr = DataLoader(ChipDataset(tr, norm, augment=True, use_anc=use_anc), shuffle=sampler is None,
+                       sampler=sampler, drop_last=len(tr) > t.batch_size, **kw)
+    dl_va = DataLoader(ChipDataset(va, norm, use_anc=use_anc), shuffle=False, **kw)
 
     m = cfg.model
-    model = build_model(m.arch, m.encoder, m.encoder_weights).to(device)
+    model = build_model(m.arch, m.encoder, m.encoder_weights, in_channels=len(features)).to(device)
     lossf = DiceCELoss(None if w is None else torch.tensor(w, device=device), t.dice_weight)
     opt = torch.optim.AdamW(model.parameters(), lr=t.lr, weight_decay=t.weight_decay)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=t.lr, total_steps=max(1, t.epochs * len(dl_tr)),
@@ -115,7 +136,7 @@ def train(cfg: Config, records: list[ChipRecord], out_dir: str | Path, log=print
             f"F1 {val['macro_f1']:.4f} OA {val['overall_accuracy']:.4f} ({time.time() - t0:.0f}s)")
         if val["mIoU"] > best:
             best, best_epoch = val["mIoU"], epoch
-            save_checkpoint(ckpt, model, m.arch, m.encoder, norm, {"val": val, "epoch": epoch})
+            save_checkpoint(ckpt, model, m.arch, m.encoder, norm, {"val": val, "epoch": epoch}, features=features)
         elif epoch - best_epoch >= t.patience:
             log(f"early stop: no val improvement for {t.patience} epochs")
             break
@@ -125,7 +146,7 @@ def train(cfg: Config, records: list[ChipRecord], out_dir: str | Path, log=print
     model, norm, ck = load_checkpoint(ckpt, device)
     results = {"best_epoch": best_epoch, "val": ck["metrics"]["val"], "history": history}
     if te:
-        cm_te = evaluate(model, DataLoader(ChipDataset(te, norm), shuffle=False, **kw), device)
+        cm_te = evaluate(model, DataLoader(ChipDataset(te, norm, use_anc=use_anc), shuffle=False, **kw), device)
         results["test"] = summarize(cm_te)
         results["test_confusion"] = cm_te.tolist()
         log(f"TEST mIoU {results['test']['mIoU']:.4f}  macro-F1 {results['test']['macro_f1']:.4f}  "
@@ -133,9 +154,9 @@ def train(cfg: Config, records: list[ChipRecord], out_dir: str | Path, log=print
     per_site = {}
     for site in sorted({r.site for r in te}):
         rs = [r for r in te if r.site == site]
-        per_site[site] = summarize(evaluate(model, DataLoader(ChipDataset(rs, norm), shuffle=False, **kw), device))
+        per_site[site] = summarize(evaluate(model, DataLoader(ChipDataset(rs, norm, use_anc=use_anc), shuffle=False, **kw), device))
     results["test_per_site"] = per_site
-    save_checkpoint(ckpt, model, m.arch, m.encoder, norm, {**ck["metrics"], "test": results.get("test"),
+    save_checkpoint(ckpt, model, m.arch, m.encoder, norm, features=features, metrics={**ck["metrics"], "test": results.get("test"),
                                                            "test_confusion": results.get("test_confusion")})
     (out / "metrics.json").write_text(json.dumps(results, indent=2))
     return results

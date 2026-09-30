@@ -78,3 +78,49 @@ def test_spectral_model(tmp_path):
         cls, conf = pr.predict(s.read())
     assert cls.shape == (256, 256) and conf.max() <= 1.0
     assert model_card(tmp_path / "m" / "spectral.json")["kind"] == "spectral-lgbm"
+
+
+def test_ancillary_inputs(tmp_path):
+    from bluecarbon.features import FEATURE_NAMES_ANC
+    from bluecarbon.predictors import load_predictor, read_ancillary
+    from bluecarbon.spectral import train_spectral
+
+    from .conftest import write_ancillary
+
+    cfg = load_config(None, {
+        "model": {"encoder": "resnet18", "encoder_weights": None},
+        "train": {"epochs": 2, "batch_size": 4, "num_workers": 0, "lr": 3e-3, "device": "cpu", "amp": False},
+    })
+    recs = []
+    for i, split in enumerate(["train", "train", "val", "test"]):
+        d = tmp_path / f"s{i}"
+        d.mkdir()
+        _, lab = make_scene(d / "image.tif", d / "label.tif", size=256, seed=i)
+        anc = write_ancillary(d / "image.tif", lab)
+        recs += make_chips(d / "image.tif", d / "label.tif", tmp_path / "chips", f"s{i}", size=128, stride=128,
+                           force_split=split, ancillary_path=anc)
+    with np.load(recs[0].path) as z:
+        assert "anc" in z.files and z["anc"].shape == (3, 128, 128)
+
+    train(cfg, recs, tmp_path / "unet", log=lambda *_: None)
+    pr = load_predictor(tmp_path / "unet" / "model.pt")
+    assert pr.needs_ancillary
+    _, _, ck = load_checkpoint(tmp_path / "unet" / "model.pt")
+    assert ck["features"] == FEATURE_NAMES_ANC
+
+    train_spectral(recs, tmp_path / "spec", per_class_per_chip=100, n_estimators=20, log=lambda *_: None)
+    sp = load_predictor(tmp_path / "spec" / "spectral.json")
+    assert sp.needs_ancillary
+
+    img = tmp_path / "s3" / "image.tif"
+    with rasterio.open(img) as s:
+        bands = s.read()
+    anc = read_ancillary(img, bands.shape[1:])
+    for p in (pr, sp):
+        cls, _ = p.predict(bands, tile=128, overlap=32, anc=anc)
+        assert cls.shape == (256, 256)
+    try:
+        pr.predict(bands)
+        raise AssertionError("should require ancillary")
+    except ValueError:
+        pass

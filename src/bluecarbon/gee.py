@@ -97,6 +97,26 @@ def _asset_bands(asset_id: str) -> list[str] | None:
         return None
 
 
+def _tidal_band(cfg: Config) -> str | None:
+    lc = cfg.labels
+    bands = _asset_bands(lc.tidal_wetland) or []
+    if lc.tidal_wetland_band in bands:
+        return lc.tidal_wetland_band
+    prob = sorted((b for b in bands if "prob" in b.lower()), key=lambda b: ("end" not in b, b))
+    return prob[0] if prob else None
+
+
+def ancillary_image(cfg: Config):
+    """int16 context layers: elevation (m), tidal wetland probability (0-100), |latitude| x 100."""
+    _require_ee()
+    lc = cfg.labels
+    elev = ee.Image(lc.dem).select("elevation").unmask(0).clamp(-100, 3000)
+    band = _tidal_band(cfg)
+    tidal = (ee.Image(lc.tidal_wetland).select(band).unmask(0) if band else ee.Image(0))
+    abs_lat = ee.Image.pixelLonLat().select("latitude").abs().multiply(100)
+    return ee.Image.cat([elev, tidal, abs_lat]).rename(["elevation", "tidal_prob", "abs_lat"]).toInt16()
+
+
 def tidal_zone(cfg: Config):
     """Where the tide actually reaches. Salt marsh is only labelled inside this zone.
 

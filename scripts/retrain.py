@@ -1,10 +1,9 @@
-"""Round 2: rebuild labels with the improved rules, retrain, and export every demo page.
+"""Full retraining run: download anything missing, (re)build labels, train, export every demo page.
 
-Run in the same Colab session after the first run (the satellite images are reused):
+Resumable: imagery, ancillary layers and labels that already exist in runs/default are reused, so it
+can be re-run in the same Colab session after an interruption. Writes results.zip.
 
-    !git pull -q && python scripts/round2.py
-
-Takes about 45-75 minutes on an L4/T4 GPU and writes round2_results.zip.
+    !git pull -q && python scripts/retrain.py
 """
 
 from __future__ import annotations
@@ -45,7 +44,7 @@ def main() -> None:
     meta_p.write_text(json.dumps(meta, indent=2))
     run(sys.executable, "scripts/export_all_sites.py")
 
-    out = Path("round2_results")
+    out = Path("results")
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir()
     shutil.copy(best, out / best.name)
@@ -56,9 +55,9 @@ def main() -> None:
     labels = {p.parent.name: json.loads(p.read_text()).get("label_px") for p in (WORK / "sites").glob("*/meta.json")}
     (out / "label_summary.json").write_text(json.dumps(labels, indent=2))
     shutil.copytree("demo_data", out / "demo_data")
-    shutil.make_archive("round2_results", "zip", ".", str(out))
-    print("\nDone: round2_results.zip. Download it with: from google.colab import files; "
-          "files.download('round2_results.zip')")
+    shutil.make_archive("results", "zip", ".", str(out))
+    print("\nDone: results.zip. Download it with: from google.colab import files; "
+          "files.download('results.zip')")
 
 
 if __name__ == "__main__":

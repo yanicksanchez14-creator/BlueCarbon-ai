@@ -11,26 +11,36 @@ import numpy as np
 class Predictor:
     kind: str
     meta: dict
+    needs_ancillary: bool = False
 
     def predict(self, bands: np.ndarray, tile: int = 256, overlap: int = 64, tta: bool = True,
-                progress=None) -> tuple[np.ndarray, np.ndarray]:
+                progress=None, anc: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
         raise NotImplementedError
+
+    def _check_anc(self, anc):
+        if self.needs_ancillary and anc is None:
+            raise ValueError("This model needs the ancillary layers (elevation, tidal probability, latitude); "
+                             "pass anc= or put ancillary.tif next to the image")
+        return anc if self.needs_ancillary else None
 
 
 class TorchPredictor(Predictor):
     kind = "unet"
 
     def __init__(self, path: str | Path, device: str = "auto"):
+        from .features import N_FEATURES
         from .model import load_checkpoint, resolve_device
 
         self.model, self.norm, ck = load_checkpoint(path, resolve_device(device))
+        self.needs_ancillary = len(ck["features"]) > N_FEATURES
         self.meta = {"arch": ck["arch"], "encoder": ck["encoder"], "kind": self.kind,
                      "metrics": ck.get("metrics", {}), "extra": ck.get("extra", {})}
 
-    def predict(self, bands, tile=256, overlap=64, tta=True, progress=None):
+    def predict(self, bands, tile=256, overlap=64, tta=True, progress=None, anc=None):
         from .predict import predict_array
 
-        return predict_array(self.model, self.norm, bands, tile, overlap, tta, progress=progress)
+        return predict_array(self.model, self.norm, bands, tile, overlap, tta, progress=progress,
+                             anc=self._check_anc(anc))
 
 
 class SpectralPredictor(Predictor):
@@ -40,10 +50,11 @@ class SpectralPredictor(Predictor):
         from .spectral import SpectralModel
 
         self.model = SpectralModel.load(path)
+        self.needs_ancillary = self.model.uses_ancillary
         self.meta = {**self.model.info, "metrics": self.model.metrics, "extra": self.model.extra}
 
-    def predict(self, bands, tile=256, overlap=64, tta=True, progress=None):
-        out = self.model.predict(bands)
+    def predict(self, bands, tile=256, overlap=64, tta=True, progress=None, anc=None):
+        out = self.model.predict(bands, anc=self._check_anc(anc))
         if progress:
             progress(1.0)
         return out
@@ -72,3 +83,25 @@ def model_card(path: str | Path) -> dict:
     ck = torch.load(path, map_location="cpu", weights_only=False)
     return {"arch": ck["arch"], "encoder": ck["encoder"], "kind": "unet", "metrics": ck.get("metrics", {}),
             "extra": ck.get("extra", {})}
+
+
+def ancillary_path_for(image_path: str | Path) -> Path | None:
+    """ancillary.tif lives next to image.tif (or t0_image.tif / t1_image.tif)."""
+    p = Path(image_path)
+    for cand in (p.with_name(p.name.replace("image", "ancillary")), p.parent / "ancillary.tif"):
+        if cand.exists() and cand != p:
+            return cand
+    return None
+
+
+def read_ancillary(image_path: str | Path, shape: tuple[int, int]) -> np.ndarray | None:
+    import rasterio
+
+    a = ancillary_path_for(image_path)
+    if a is None:
+        return None
+    with rasterio.open(a) as ds:
+        arr = ds.read()
+    if arr.shape[1:] != tuple(shape):
+        raise ValueError(f"{a} is {arr.shape[1:]} but the image is {shape}")
+    return arr

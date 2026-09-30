@@ -47,6 +47,7 @@ model:
   arch: Unet                      # any segmentation_models_pytorch architecture (Unet, UnetPlusPlus, DeepLabV3Plus, ...)
   encoder: resnet34
   encoder_weights: imagenet       # set null to train from scratch / offline
+  use_ancillary: true             # add elevation, tidal-wetland probability and |latitude| as inputs
 
 train:
   epochs: 60
@@ -58,6 +59,7 @@ train:
   amp: true
   num_workers: 2
   patience: 12
+  rare_oversample: 4              # chips with blue carbon habitat are drawn up to 4x more often
   device: auto
 
 predict:

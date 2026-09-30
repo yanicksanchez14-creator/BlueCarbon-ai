@@ -5,7 +5,7 @@
 year: 2021
 
 sites:
-  - {name: mission_bay_ca,       bbox: [-117.265, 32.745, -117.185, 32.810], role: test,  note: "Held-out: graded against the 2025 hand labels"}
+  - {name: mission_bay_ca,       bbox: [-117.265, 32.745, -117.185, 32.810], role: test,  note: "Held-out: Mission Bay and the Kendall-Frost Marsh Reserve, San Diego"}
   - {name: south_sd_bay_ca,      bbox: [-117.150, 32.560, -117.080, 32.640], role: train, note: "South San Diego Bay NWR salt marsh"}
   - {name: south_sf_bay_ca,      bbox: [-122.150, 37.420, -121.980, 37.550], role: train, note: "Don Edwards SF Bay NWR tidal marsh"}
   - {name: ten_thousand_isl_fl,  bbox: [-81.600, 25.800, -81.350, 26.000], role: train, note: "Mangrove forest, SW Florida"}
@@ -14,6 +14,13 @@ sites:
   - {name: laguna_terminos_mx,   bbox: [-91.900, 18.500, -91.600, 18.750], role: train, note: "Mangrove lagoon, Campeche"}
   - {name: sundarbans_bd,        bbox: [89.100, 21.700, 89.400, 22.000],   role: train, note: "World's largest mangrove forest"}
   - {name: wadden_sea_de,        bbox: [8.600, 53.800, 8.900, 54.050],     role: train, note: "Salt marsh + tidal flats, North Sea"}
+  # Seagrass-rich sites mapped by the Allen Coral Atlas (added so the model sees enough seagrass)
+  - {name: florida_keys_fl,      bbox: [-81.600, 24.550, -81.350, 24.800], role: train, note: "Seagrass meadows and mangrove keys, Lower Florida Keys"}
+  - {name: belize_lagoon_bz,     bbox: [-88.100, 17.250, -87.850, 17.500], role: train, note: "Seagrass lagoon behind the Belize Barrier Reef"}
+  - {name: exuma_bahamas,        bbox: [-76.550, 23.850, -76.300, 24.100], role: train, note: "Seagrass banks, Exuma Cays"}
+  - {name: hinchinbrook_au,      bbox: [146.100, -18.350, 146.350, -18.100], role: train, note: "Mangrove and seagrass, Great Barrier Reef coast"}
+  - {name: chwaka_bay_tz,        bbox: [39.400, -6.250, 39.600, -6.050],   role: train, note: "Seagrass and mangrove, Zanzibar"}
+  - {name: safaga_eg,            bbox: [33.800, 26.650, 34.050, 26.900],   role: train, note: "Seagrass meadows, Red Sea"}
   - {name: moreton_bay_au,       bbox: [153.100, -27.500, 153.350, -27.250], role: test, note: "Held-out: mangrove, salt marsh, seagrass"}
   - {name: tampa_bay_fl,         bbox: [-82.700, 27.600, -82.500, 27.800], role: test, note: "Held-out: mangrove + seagrass"}
 

@@ -29,6 +29,12 @@ TITLES = {
     "wadden_sea_de": ("Wadden Sea", "Schleswig-Holstein, Germany"),
     "moreton_bay_au": ("Moreton Bay", "Queensland, Australia"),
     "tampa_bay_fl": ("Tampa Bay", "Florida, USA"),
+    "florida_keys_fl": ("Lower Florida Keys", "Florida, USA"),
+    "belize_lagoon_bz": ("Belize Barrier Reef lagoon", "Belize"),
+    "exuma_bahamas": ("Exuma Cays", "The Bahamas"),
+    "hinchinbrook_au": ("Hinchinbrook Island", "Queensland, Australia"),
+    "chwaka_bay_tz": ("Chwaka Bay", "Zanzibar, Tanzania"),
+    "safaga_eg": ("Safaga", "Red Sea, Egypt"),
 }
 
 

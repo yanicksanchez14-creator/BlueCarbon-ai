@@ -43,10 +43,12 @@ def block_split(site: str, bx: int, by: int, fractions=(0.7, 0.15, 0.15), seed: 
 
 def make_chips(image_path: str | Path, label_path: str | Path, out_dir: str | Path, site: str,
                size: int = 256, stride: int = 256, min_labeled_frac: float = 0.2, block_km: float = 5,
-               fractions=(0.7, 0.15, 0.15), seed: int = 42, force_split: str | None = None) -> list[ChipRecord]:
+               fractions=(0.7, 0.15, 0.15), seed: int = 42, force_split: str | None = None,
+               ancillary_path: str | Path | None = None) -> list[ChipRecord]:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     records: list[ChipRecord] = []
+    anc_ds = rasterio.open(ancillary_path) if ancillary_path and Path(ancillary_path).exists() else None
     with rasterio.open(image_path) as im, rasterio.open(label_path) as lb:
         if (im.width, im.height) != (lb.width, lb.height) or im.transform != lb.transform:
             raise ValueError(f"{image_path} and {label_path} are not on the same grid")
@@ -63,8 +65,13 @@ def make_chips(image_path: str | Path, label_path: str | Path, out_dir: str | Pa
                     continue
                 split = force_split or block_split(site, c // block_px, r // block_px, fractions, seed)
                 p = out_dir / f"{site}_r{r:05d}_c{c:05d}.npz"
-                np.savez_compressed(p, image=x.astype(np.uint16), label=y)
+                extra = {}
+                if anc_ds is not None:
+                    extra["anc"] = anc_ds.read(window=win).astype(np.int16)
+                np.savez_compressed(p, image=x.astype(np.uint16), label=y, **extra)
                 records.append(ChipRecord(str(p), site, split, r, c, frac))
+    if anc_ds is not None:
+        anc_ds.close()
     return records
 
 

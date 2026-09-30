@@ -1,7 +1,7 @@
 ## Pipeline
 
 ```
-Sentinel-2 L2A ──► Cloud Score+ mask ──► seasonal median ──► 10 bands + 4 indices ─┐
+Sentinel-2 L2A ──► Cloud Score+ mask ──► seasonal median ──► 10 bands + 4 indices + elevation / tide / latitude ─┐
                                                                                   ├─► U-Net ──► habitat map ──► area ──► carbon
 ESA WorldCover ─┬─► fused reference labels ──► boundary buffer ──► chips ─────────┘      (±TTA)     (error-      (Tier 1,
 Murray tidal    │                                                  (spatial-block split)            adjusted)    Monte Carlo)
@@ -33,7 +33,12 @@ least reliable.
 (Moreton Bay, Tampa Bay) are held out entirely. That tests geographic generalization, not memorization
 of neighbouring pixels.
 
-**Model.** A U-Net with a ResNet-34 encoder from `segmentation-models-pytorch`, a 14-channel input
+**Context layers.** Elevation (NASADEM), tidal-wetland probability (Murray et al. 2022) and |latitude| are
+added as inputs, because tidal vs. freshwater marsh and marsh vs. mangrove can't be separated from one image
+alone. Two of these also feed the label rules, so held-out estuary scores are the fair measure. Mangrove
+predictions are restricted to 39°S–32.5°N.
+
+**Model.** A U-Net with a ResNet-34 encoder from `segmentation-models-pytorch`, a 17-channel input
 stem, and cross-entropy plus Dice loss with square-root inverse-frequency class weights.
 Training uses AdamW with one-cycle LR, mixed precision and early stopping on validation mIoU.
 Inference uses overlapping tiles blended with a Hann window, plus flip test-time augmentation.

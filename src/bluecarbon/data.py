@@ -16,25 +16,37 @@ def load_chip(path: str) -> tuple[np.ndarray, np.ndarray]:
         return z["image"], z["label"]
 
 
+def load_chip_anc(path: str) -> np.ndarray | None:
+    with np.load(path) as z:
+        return z["anc"] if "anc" in z.files else None
+
+
+def chips_have_ancillary(records: list[ChipRecord]) -> bool:
+    return bool(records) and all(load_chip_anc(r.path) is not None for r in records[:50])
+
+
 class ChipDataset(Dataset):
-    def __init__(self, records: list[ChipRecord], normalizer: Normalizer, augment: bool = False):
+    def __init__(self, records: list[ChipRecord], normalizer: Normalizer, augment: bool = False,
+                 use_anc: bool = False):
         self.records = records
         self.norm = normalizer
         self.augment = augment
+        self.use_anc = use_anc
 
     def __len__(self) -> int:
         return len(self.records)
 
     def __getitem__(self, i: int):
         img, lab = load_chip(self.records[i].path)
-        x = self.norm(compute_features(img))
+        anc = load_chip_anc(self.records[i].path) if self.use_anc else None
+        x = self.norm(compute_features(img, anc=anc))
         y = lab.astype(np.int64)
         if self.augment:
-            x, y = _augment(x, y)
+            x, y = _augment(x, y, n_spectral=x.shape[0] - (3 if self.use_anc else 0))
         return torch.from_numpy(np.ascontiguousarray(x)), torch.from_numpy(np.ascontiguousarray(y))
 
 
-def _augment(x: np.ndarray, y: np.ndarray, rng=np.random):
+def _augment(x: np.ndarray, y: np.ndarray, rng=np.random, n_spectral: int | None = None):
     """Dihedral (8 orientations) + mild per-chip spectral jitter.
 
     Spectral jitter mimics atmosphere / sun-angle differences between sites.
@@ -43,18 +55,22 @@ def _augment(x: np.ndarray, y: np.ndarray, rng=np.random):
     x, y = np.rot90(x, k, axes=(1, 2)), np.rot90(y, k)
     if rng.rand() < 0.5:
         x, y = x[:, :, ::-1], y[:, ::-1]
-    gain = 1 + rng.normal(0, 0.05, size=(x.shape[0], 1, 1)).astype(np.float32)
-    bias = rng.normal(0, 0.05, size=(x.shape[0], 1, 1)).astype(np.float32)
+    n = x.shape[0] if n_spectral is None else n_spectral  # never jitter elevation / tide / latitude
+    gain = np.ones((x.shape[0], 1, 1), np.float32)
+    bias = np.zeros((x.shape[0], 1, 1), np.float32)
+    gain[:n] += rng.normal(0, 0.05, size=(n, 1, 1)).astype(np.float32)
+    bias[:n] += rng.normal(0, 0.05, size=(n, 1, 1)).astype(np.float32)
     return x * gain + bias, y
 
 
-def fit_normalizer(records: list[ChipRecord], max_chips: int = 400, seed: int = 0) -> Normalizer:
+def fit_normalizer(records: list[ChipRecord], max_chips: int = 400, seed: int = 0,
+                   use_anc: bool = False) -> Normalizer:
     rng = np.random.default_rng(seed)
     pick = rng.permutation(len(records))[:max_chips]
     feats, masks = [], []
     for i in pick:
         img, _ = load_chip(records[i].path)
-        feats.append(compute_features(img))
+        feats.append(compute_features(img, anc=load_chip_anc(records[i].path) if use_anc else None))
         masks.append(valid_mask(img))
     return Normalizer.fit(feats, masks)
 

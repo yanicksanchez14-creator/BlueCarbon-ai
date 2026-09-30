@@ -366,7 +366,7 @@ def model_desc(model: dict) -> str:
     if model.get("kind") == "spectral-lgbm":
         return ("Gradient-boosted decision trees (LightGBM) reading each pixel's 10 satellite bands, 9 plant and water "
                 "indices, and the surrounding 30 m and 90 m neighbourhood")
-    return f"{model['arch']} neural network · {model['encoder']} encoder · 14 image bands"
+    return f"{model['arch']} neural network · {model['encoder']} encoder · satellite bands plus elevation, tide and latitude"
 
 
 def model_panel(model: dict | None) -> None:
@@ -921,10 +921,17 @@ with tab_analyze:
                 bar = st.progress(0.0)
                 gee.download(gee.s2_composite(region, str(start), str(end), CFG), bbox, tmp / "image.tif", CFG,
                              "uint16", 0, S2_BANDS, progress=bar.progress)
+                anc = None
+                if predictor.needs_ancillary:
+                    st.write("Fetching elevation and tidal layers…")
+                    gee.download(gee.ancillary_image(CFG), bbox, tmp / "ancillary.tif", CFG, "int16", None,
+                                 ["elevation", "tidal_prob", "abs_lat"])
+                    with rasterio.open(tmp / "ancillary.tif") as a:
+                        anc = a.read()
                 st.write("Segmenting habitats…")
                 with rasterio.open(tmp / "image.tif") as src:
                     bands, prof = src.read(), src.profile
-                cls, _ = predictor.predict(bands, CFG.predict.tile, CFG.predict.overlap)
+                cls, _ = predictor.predict(bands, CFG.predict.tile, CFG.predict.overlap, anc=anc)
                 from bluecarbon.priors import apply_to_classes
 
                 cls = apply_to_classes(cls, (bbox[1] + bbox[3]) / 2)
@@ -970,7 +977,7 @@ with tab_method:
     steps = [
         ("01", "Acquire", "Sentinel-2 L2A surface reflectance, masked with Cloud Score+ and reduced to a seasonal median."),
         ("02", "Label", "Reference labels fused from ESA WorldCover, Murray tidal flats and the Allen Coral Atlas."),
-        ("03", "Learn", "U-Net with a ResNet encoder on 10 bands + 4 spectral indices, trained with Dice + CE loss."),
+        ("03", "Learn", "U-Net with a ResNet encoder on 10 bands, 4 indices and 3 context layers, trained with Dice + CE loss."),
         ("04", "Map", "Overlapping tiles blended with a smooth window and flip test-time augmentation."),
         ("05", "Account", "Error-adjusted areas × IPCC Tier 1 carbon factors, with Monte Carlo 90% intervals."),
     ]
@@ -994,6 +1001,12 @@ with tab_method:
 (<code>cs_cdf ≥ 0.6</code>). Ten bands (B2–B8A, B11, B12) are exported at 10&nbsp;m in the local UTM zone,
 so every pixel has a true ground area. The model also receives four indices: NDVI (vegetation), NDWI and
 MNDWI (water), and NDMI (canopy moisture, which separates mangrove from dry upland).</p>
+<p><b>Context layers.</b> Some habitats look identical from space: tidal salt marsh and inland freshwater marsh,
+or dense salt marsh and young mangrove. So the model also gets three layers that describe <i>where</i> a pixel is:
+elevation (NASADEM), the probability that the tide reaches it (Murray et al., 2022), and its distance from the
+equator. Two of these also help build the reference labels, so part of what the model learns from them is that
+labelling rule. That is why the scores on held-out estuaries, not the training fit, are the numbers that count.
+Mangroves are also limited to their known latitude range (39°S–32.5°N), because frost kills them.</p>
 
 <h3>Reference labels</h3>
 <p>Training labels come from independent, peer-reviewed global products, not from thresholds on the
@@ -1009,7 +1022,7 @@ products are least reliable. Local survey polygons (for example eelgrass surveys
 </tbody></table>
 
 <h3>Model and evaluation</h3>
-<p>A U-Net with a ResNet-34 encoder (<code>segmentation-models-pytorch</code>) and a 14-channel input stem, trained
+<p>A U-Net with a ResNet-34 encoder (<code>segmentation-models-pytorch</code>) and a 17-channel input stem, trained
 with cross-entropy plus Dice loss and square-root inverse-frequency class weights, AdamW with a one-cycle
 schedule, mixed precision and early stopping on validation mIoU.</p>
 <p>Evaluation is built so the model can't score well by memorizing. Chips never overlap, whole 5&nbsp;km blocks are

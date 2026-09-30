@@ -40,6 +40,10 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
         if only and site["name"] not in only:
             continue
         d = cfg.work / "sites" / site["name"]
+        if not (d / "ancillary.tif").exists() and (d / "image.tif").exists():
+            typer.echo(f"[{site['name']}] ancillary layers ...")
+            gee.download(gee.ancillary_image(cfg), site["bbox"], d / "ancillary.tif", cfg, "int16", None,
+                         ["elevation", "tidal_prob", "abs_lat"])
         if labels_only and (d / "meta.json").exists() and "label_sources" in json.loads((d / "meta.json").read_text()):
             typer.echo(f"[{site['name']}] labels already rebuilt, skipping (delete meta.json to redo)")
             continue
@@ -48,6 +52,10 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
             img = gee.s2_composite(region, f"{year}-01-01", f"{year + 1}-01-01", cfg)
             typer.echo(f"[{site['name']}] imagery ...")
             gee.download(img, site["bbox"], d / "image.tif", cfg, "uint16", 0, S2_BANDS)
+        if not (d / "ancillary.tif").exists():
+            typer.echo(f"[{site['name']}] ancillary layers ...")
+            gee.download(gee.ancillary_image(cfg), site["bbox"], d / "ancillary.tif", cfg, "int16", None,
+                         ["elevation", "tidal_prob", "abs_lat"])
         typer.echo(f"[{site['name']}] labels ...")
         info: dict = {}
         gee.download(gee.reference_labels(region, cfg, info), site["bbox"], d / "label.tif", cfg, "uint8", 255,
@@ -72,7 +80,8 @@ def chips(config: str = CfgOpt, sites: str = SitesOpt):
             typer.echo(f"skip {site['name']} (not fetched)")
             continue
         r = make_chips(d / "image.tif", d / "label.tif", out, site["name"], c.size, c.stride, c.min_labeled_frac,
-                       c.block_km, c.split, c.seed, "test" if site.get("role") == "test" else None)
+                       c.block_km, c.split, c.seed, "test" if site.get("role") == "test" else None,
+                       ancillary_path=d / "ancillary.tif")
         typer.echo(f"{site['name']}: {len(r)} chips")
         recs += r
     write_index(recs, out / "index.json")
@@ -161,7 +170,10 @@ def predict(image: Path, model: Path = typer.Option(..., "--model", "-m"), out: 
     out = out or image.with_name(image.stem + "_pred.tif")
     with rasterio.open(image) as src:
         bands, prof = src.read(), src.profile.copy()
-    cls, conf = pr.predict(bands, cfg.predict.tile, cfg.predict.overlap, cfg.predict.tta)
+    from .predictors import read_ancillary
+
+    anc = read_ancillary(image, bands.shape[1:]) if pr.needs_ancillary else None
+    cls, conf = pr.predict(bands, cfg.predict.tile, cfg.predict.overlap, cfg.predict.tta, anc=anc)
     from .priors import apply_to_classes, raster_center_lat
 
     cls = apply_to_classes(cls, raster_center_lat(prof["transform"], prof["crs"], *cls.shape))
@@ -206,6 +218,8 @@ def scene(bbox: list[float] = typer.Option(..., help="lon_min lat_min lon_max la
     d = cfg.work / "scenes" / name
     img = gee.s2_composite(gee.bbox_geometry(bbox), start, end, cfg)
     gee.download(img, bbox, d / "image.tif", cfg, "uint16", 0, S2_BANDS)
+    gee.download(gee.ancillary_image(cfg), bbox, d / "ancillary.tif", cfg, "int16", None,
+                 ["elevation", "tidal_prob", "abs_lat"])
     predict(d / "image.tif", model, d / "pred.tif", config)
     report(d / "pred.tif", model, config, d)
 
@@ -222,6 +236,10 @@ def case_study(model: Path = typer.Option(..., "--model", "-m"), config: str = C
     cs = s["case_study"]
     gee.init(cfg.project, service_account.read_text() if service_account else None)
     d = cfg.work / "scenes" / cs["name"]
+    d.mkdir(parents=True, exist_ok=True)
+    if not (d / "ancillary.tif").exists():
+        gee.download(gee.ancillary_image(cfg), cs["bbox"], d / "ancillary.tif", cfg, "int16", None,
+                     ["elevation", "tidal_prob", "abs_lat"])
     for key, (a, b) in cs["periods"].items():
         img = gee.s2_composite(gee.bbox_geometry(cs["bbox"]), a, b, cfg)
         gee.download(img, cs["bbox"], d / f"{key}_image.tif", cfg, "uint16", 0, S2_BANDS)

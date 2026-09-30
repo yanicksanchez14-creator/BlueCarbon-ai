@@ -187,7 +187,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", type=Path, help="model file (not needed with --results)")
     ap.add_argument("--demo", type=Path, help="demo_all.zip / demo_data.zip (not needed with --results)")
-    ap.add_argument("--results", type=Path, help="round2_results.zip from scripts/round2.py")
+    ap.add_argument("--results", type=Path, help="results.zip from scripts/retrain.py")
     ap.add_argument("--keep-pilot", action="store_true")
     a = ap.parse_args()
     with tempfile.TemporaryDirectory() as tmp:

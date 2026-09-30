@@ -48,3 +48,18 @@ def scene(tmp_path):
     img_p, lab_p = tmp_path / "image.tif", tmp_path / "label.tif"
     img, lab = make_scene(img_p, lab_p)
     return img_p, lab_p, img, lab
+
+
+def write_ancillary(path_img, lab):
+    """Synthetic ancillary.tif next to an image: tide high over marsh/flats, low over freshwater."""
+    with rasterio.open(path_img) as src:
+        prof = src.profile.copy()
+    h, w = lab.shape
+    elev = np.where(np.isin(lab, [0, 3]), 0, 3).astype(np.int16)
+    tidal = np.where(np.isin(lab, [1, 2, 4]), 90, 5).astype(np.int16)
+    lat = np.full((h, w), 2500, np.int16)
+    prof.update(count=3, dtype="int16", nodata=None)
+    out = path_img.parent / "ancillary.tif"
+    with rasterio.open(out, "w", **prof) as d:
+        d.write(np.stack([elev, tidal, lat]))
+    return out

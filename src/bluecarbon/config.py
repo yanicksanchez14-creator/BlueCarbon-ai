@@ -45,6 +45,7 @@ class ModelCfg(BaseModel):
     arch: str = "Unet"
     encoder: str = "resnet34"
     encoder_weights: str | None = "imagenet"
+    use_ancillary: bool = True
 
 
 class TrainCfg(BaseModel):
@@ -57,6 +58,7 @@ class TrainCfg(BaseModel):
     amp: bool = True
     num_workers: int = 2
     patience: int = 12
+    rare_oversample: float = 4.0
     device: str = "auto"
 
 
