@@ -574,7 +574,7 @@ def map_legend(report: dict, only_blue: bool) -> str:
 
 # ----------------------------------------------------------------------------- chrome
 st.markdown(
-    f'<div class="bc-top"><div class="bc-brand">{LOGO}<div class="bc-word">BlueCarbon<span>-AI</span></div>'
+    f'<div class="bc-top"><div class="bc-brand"><div class="bc-word">BlueCarbon<span>-AI</span></div>'
     f'</div><div class="bc-links"><a href="{REPO}" target="_blank">GitHub</a>'
     f'<a href="{REPO}/blob/main/docs/METHODOLOGY.md" target="_blank">How it works</a></div></div>'
     '<div class="bc-hero"><div>'
