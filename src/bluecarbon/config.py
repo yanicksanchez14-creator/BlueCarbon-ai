@@ -23,6 +23,10 @@ class LabelsCfg(BaseModel):
     reef_habitat: str = "ACA/reef_habitat/v2_0"
     seagrass_value: int = 14
     marsh_max_elev_m: float = 5
+    tidal_wetland: str = "JCU/Murray/GIC/global_tidal_wetland_change/2019"
+    tidal_wetland_band: str = "twprobability_end"
+    tidal_wetland_min_prob: float = 50
+    seagrass_vectors: list[str] = []
     dem: str = "NASA/NASADEM_HGT/001"
     overrides: str | None = None
     boundary_ignore_px: int = 1

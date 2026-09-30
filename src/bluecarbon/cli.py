@@ -26,7 +26,8 @@ def _sites(path: str) -> dict:
 
 @app.command()
 def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.Option(None, help="Site names"),
-          service_account: Path = typer.Option(None, help="Service account key JSON")):
+          service_account: Path = typer.Option(None, help="Service account key JSON"),
+          labels_only: bool = typer.Option(False, help="Re-build labels, keep already-downloaded imagery")):
     """Download Sentinel-2 composites + fused reference labels for every site (Earth Engine)."""
     from . import gee
     from .features import S2_BANDS
@@ -40,14 +41,17 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
             continue
         d = cfg.work / "sites" / site["name"]
         region = gee.bbox_geometry(site["bbox"])
-        img = gee.s2_composite(region, f"{year}-01-01", f"{year + 1}-01-01", cfg)
-        typer.echo(f"[{site['name']}] imagery ...")
-        gee.download(img, site["bbox"], d / "image.tif", cfg, "uint16", 0, S2_BANDS)
+        if not (labels_only and (d / "image.tif").exists()):
+            img = gee.s2_composite(region, f"{year}-01-01", f"{year + 1}-01-01", cfg)
+            typer.echo(f"[{site['name']}] imagery ...")
+            gee.download(img, site["bbox"], d / "image.tif", cfg, "uint16", 0, S2_BANDS)
         typer.echo(f"[{site['name']}] labels ...")
-        gee.download(gee.reference_labels(region, cfg), site["bbox"], d / "label.tif", cfg, "uint8", 255, ["label"])
+        info: dict = {}
+        gee.download(gee.reference_labels(region, cfg, info), site["bbox"], d / "label.tif", cfg, "uint8", 255,
+                     ["label"])
         hist = postprocess_label_file(d / "label.tif", cfg.labels.boundary_ignore_px, cfg.labels.overrides)
-        (d / "meta.json").write_text(json.dumps({**site, "year": year, "label_px": hist}, indent=2))
-        typer.echo(f"[{site['name']}] label pixels: {hist}")
+        (d / "meta.json").write_text(json.dumps({**site, "year": year, "label_px": hist, **info}, indent=2))
+        typer.echo(f"[{site['name']}] label pixels: {hist}  sources: {info.get('label_sources')}")
 
 
 @app.command()

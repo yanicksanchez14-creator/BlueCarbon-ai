@@ -185,11 +185,19 @@ def readme(card: dict, sites: list[str]) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", type=Path, required=True)
-    ap.add_argument("--demo", type=Path, required=True, help="demo_all.zip (or demo_data.zip)")
+    ap.add_argument("--model", type=Path, help="model file (not needed with --results)")
+    ap.add_argument("--demo", type=Path, help="demo_all.zip / demo_data.zip (not needed with --results)")
+    ap.add_argument("--results", type=Path, help="round2_results.zip from scripts/round2.py")
     ap.add_argument("--keep-pilot", action="store_true")
     a = ap.parse_args()
-    _, card = install_model(a.model)
+    with tempfile.TemporaryDirectory() as tmp:
+        if a.results:
+            zipfile.ZipFile(a.results).extractall(tmp)
+            a.model = next(p for p in Path(tmp).rglob("best.*") if p.suffix != ".txt")
+            a.demo = a.results
+        if not (a.model and a.demo):
+            raise SystemExit("give --results, or both --model and --demo")
+        _, card = install_model(a.model)
     sites = install_demo(a.demo, card)
     if not a.keep_pilot:
         remove_pilot()

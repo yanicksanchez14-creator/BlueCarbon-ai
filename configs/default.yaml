@@ -20,9 +20,14 @@ labels:
   intertidal: UQ/murray/Intertidal/v1_1/global_intertidal  # tidal flats (Murray et al. 2019)
   reef_habitat: ACA/reef_habitat/v2_0         # Allen Coral Atlas benthic (seagrass = 14), tropics
   seagrass_value: 14
-  # Herbaceous wetland (WorldCover 90) counts as salt marsh only below this elevation (m, NASADEM)
-  # and within this distance of the coast / tidal zone.
+  # Salt marsh = herbaceous / grass / shrub cover inside the tidal zone (Murray et al. 2022 tidal
+  # wetland probability >= 50%) and below this elevation (m, NASADEM). Freshwater marsh is ignored.
   marsh_max_elev_m: 5
+  tidal_wetland: JCU/Murray/GIC/global_tidal_wetland_change/2019
+  tidal_wetland_band: twprobability_end
+  tidal_wetland_min_prob: 50
+  # Extra seagrass polygons (Earth Engine FeatureCollection ids), e.g. regional eelgrass surveys.
+  seagrass_vectors: []
   dem: NASA/NASADEM_HGT/001
   # Optional user polygons (GeoPackage/GeoJSON with an integer `class_id` column following
   # src/bluecarbon/schema.py). These override everything else, e.g. local eelgrass surveys.

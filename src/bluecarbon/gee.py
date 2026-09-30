@@ -84,18 +84,49 @@ def image_count(region, start: str, end: str, cfg: Config) -> int:
 
 
 # --------------------------------------------------------------------------- labels
-def reference_labels(region, cfg: Config):
-    """Fuse published global products into the v2 class schema (uint8, 255 = ignore).
+def _asset_bands(asset_id: str) -> list[str] | None:
+    """Band names of an image / first image of a collection, or None if the asset is unavailable."""
+    try:
+        info = ee.data.getAsset(asset_id)
+    except Exception:
+        return None
+    try:
+        img = ee.Image(asset_id) if info.get("type") == "IMAGE" else ee.ImageCollection(asset_id).first()
+        return img.bandNames().getInfo()
+    except Exception:
+        return None
+
+
+def tidal_zone(cfg: Config):
+    """Where the tide actually reaches. Salt marsh is only labelled inside this zone.
+
+    Primary: Murray et al. (2022) tidal wetland probability (tidal flat + marsh + mangrove, 30 m).
+    Fallback: low-lying (<= 3 m) land within 1 km of open water.
+    """
+    lc = cfg.labels
+    bands = _asset_bands(lc.tidal_wetland)
+    if bands and lc.tidal_wetland_band in bands:
+        return ee.Image(lc.tidal_wetland).select(lc.tidal_wetland_band).gte(lc.tidal_wetland_min_prob), "murray-gic"
+    dem = ee.Image(lc.dem).select("elevation")
+    wc = ee.ImageCollection(lc.worldcover).first().select("Map")
+    near_water = wc.eq(80).focalMax(radius=1000, kernelType="circle", units="meters")
+    return dem.lte(3).And(near_water), "elevation-fallback"
+
+
+def reference_labels(region, cfg: Config, report: dict | None = None):
+    """Fuse published global products into the class schema (uint8, 255 = ignore).
 
     Priority (later overrides earlier):
-      WorldCover base -> Murray tidal flats -> low-lying herbaceous wetland = salt marsh
-      -> WorldCover mangrove -> Allen Coral Atlas seagrass.
+      WorldCover base -> Murray tidal flats -> tidal-zone herbaceous vegetation = salt marsh
+      -> WorldCover mangrove -> Allen Coral Atlas / survey-polygon seagrass.
+    Freshwater wetland (WorldCover 90 outside the tidal zone, e.g. Everglades sawgrass) is ignored.
     """
     _require_ee()
     lc = cfg.labels
     wc = ee.ImageCollection(lc.worldcover).first().select("Map")
     ign = IGNORE_INDEX
     k = KEY_TO_ID
+    used = []
 
     # WorldCover: 10 tree,20 shrub,30 grass,40 crop,50 built,60 bare,70 snow,80 water,90 herb. wetland,
     #             95 mangrove,100 moss/lichen
@@ -104,18 +135,34 @@ def reference_labels(region, cfg: Config):
         [k["other_land"]] * 6 + [ign, k["water"], ign, k["mangrove"], k["other_land"]],
         ign,
     )
+    used.append("worldcover")
 
     intertidal = ee.ImageCollection(lc.intertidal).sort("system:time_start", False).first().select(0)
     lab = base.where(intertidal.eq(1).And(wc.neq(95)), k["tidal_flat"])
+    used.append("murray-tidal-flats")
 
+    tz, tz_src = tidal_zone(cfg)
+    used.append(tz_src)
     dem = ee.Image(lc.dem).select("elevation")
-    marsh = wc.eq(90).And(dem.lte(lc.marsh_max_elev_m))
+    herb = wc.eq(90).Or(wc.eq(30)).Or(wc.eq(20))
+    marsh = herb.And(tz.unmask(0)).And(dem.lte(lc.marsh_max_elev_m)).And(wc.neq(95))
     lab = lab.where(marsh, k["saltmarsh"])
     lab = lab.where(wc.eq(95), k["mangrove"])
 
-    benthic = ee.Image(lc.reef_habitat).select("benthic")
-    lab = lab.where(benthic.eq(lc.seagrass_value), k["seagrass"])
-
+    if _asset_bands(lc.reef_habitat):
+        benthic = ee.Image(lc.reef_habitat).select("benthic")
+        lab = lab.where(benthic.eq(lc.seagrass_value), k["seagrass"])
+        used.append("allen-coral-atlas")
+    for fc_id in lc.seagrass_vectors:
+        try:
+            fc = ee.FeatureCollection(fc_id).filterBounds(region)
+            sg = ee.Image(0).paint(fc, 1).selfMask()
+            lab = lab.where(sg.unmask(0).eq(1).And(wc.eq(80).Or(lab.eq(ign))), k["seagrass"])
+            used.append(fc_id)
+        except Exception:
+            pass
+    if report is not None:
+        report["label_sources"] = used
     return lab.unmask(ign).clip(region).toUint8().rename("label")
 
 
