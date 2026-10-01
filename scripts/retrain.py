@@ -70,7 +70,16 @@ def held_out_check() -> str:
     return "\n".join(lines)
 
 
+def code_version() -> str:
+    try:
+        return subprocess.run(["git", "log", "-1", "--format=%h %s"], capture_output=True, text=True,
+                              check=True).stdout.strip()
+    except Exception:
+        return "unknown"
+
+
 def main() -> None:
+    print("Code version:", code_version(), flush=True)
     skip_train = "--skip-train" in sys.argv
     if not skip_train:
         run("bluecarbon", "fetch", "--labels-only")
@@ -107,6 +116,7 @@ def main() -> None:
     labels = {p.parent.name: json.loads(p.read_text()).get("label_px") for p in (WORK / "sites").glob("*/meta.json")}
     (out / "label_summary.json").write_text(json.dumps(labels, indent=2))
     shutil.copytree("demo_data", out / "demo_data")
+    (out / "code_version.txt").write_text(code_version() + "\n")
     check = held_out_check()
     (out / "held_out_check.txt").write_text(check + "\n")
     print("\n" + check)
