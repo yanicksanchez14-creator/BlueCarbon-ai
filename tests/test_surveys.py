@@ -34,3 +34,16 @@ def test_seagrass_field_filter():
     assert len(keep) == 1 and "HABITAT" in how
     keep, _ = seagrass_features([_square(0, 0, 1, 1, SEAGRASS="Continuous")])
     assert len(keep) == 1
+
+
+def test_negatives_near_meadows():
+    h = w = 30
+    tr = from_origin(0.0, 0.003, 0.0001, 0.0001)
+    label = np.full((h, w), IGNORE_INDEX, np.uint8)       # unmapped water everywhere
+    image = np.zeros((10, h, w), np.uint16)
+    image[1], image[8] = 800, 200                         # looks like water
+    meadow = _square(0.0, 0.002, 0.001, 0.003)            # top-left 10 x 10 px
+    out, _ = burn_seagrass(label, image, tr, "EPSG:4326", [meadow], negatives_px=5)
+    assert (out[:10, :10] == KEY_TO_ID["seagrass"]).all()
+    assert out[12, 5] == KEY_TO_ID["water"]               # 3 px from the meadow -> open water
+    assert out[25, 25] == IGNORE_INDEX                     # far away -> still unknown

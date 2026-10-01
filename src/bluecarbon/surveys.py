@@ -76,8 +76,14 @@ def seagrass_features(feats: list[dict]) -> tuple[list[dict], str]:
     return feats, f"all {len(feats)} features treated as seagrass"
 
 
-def burn_seagrass(label: np.ndarray, image: np.ndarray, transform, crs, feats: list[dict]) -> tuple[np.ndarray, int]:
-    """Set seagrass inside the polygons, over water / unlabelled water pixels only."""
+def burn_seagrass(label: np.ndarray, image: np.ndarray, transform, crs, feats: list[dict],
+                  negatives_px: int = 0) -> tuple[np.ndarray, int]:
+    """Set seagrass inside the polygons, over water / unlabelled water pixels only.
+
+    negatives_px > 0: a survey maps every meadow in the area it covers, so unlabelled water within
+    this distance of a surveyed meadow but outside every polygon is labelled open water. Without these
+    negatives the model only ever sees murky water that IS seagrass, and paints whole bays as seagrass.
+    """
     from rasterio import features as rfeatures
     from rasterio.warp import transform_geom
 
@@ -93,6 +99,11 @@ def burn_seagrass(label: np.ndarray, image: np.ndarray, transform, crs, feats: l
     m = inside & wet
     out = label.copy()
     out[m] = KEY_TO_ID["seagrass"]
+    if negatives_px > 0 and inside.any():
+        from scipy.ndimage import distance_transform_edt
+
+        near = distance_transform_edt(~inside) <= negatives_px
+        out[near & ~inside & (label == IGNORE_INDEX) & (mndwi > 0)] = KEY_TO_ID["water"]
     return out, int(m.sum())
 
 
@@ -116,7 +127,8 @@ def apply_surveys(label_path: str | Path, image_path: str | Path, bbox: list[flo
                 else:
                     feats = [f for f in fetch_wfs(s["url"], s["layer"]) if f.get("geometry")]
                 feats, how = seagrass_features(feats)
-                lab, n = burn_seagrass(lab, image, ds.transform, ds.crs, feats)
+                neg_px = int(s.get("negatives_within_m", 0) / abs(ds.transform.a))
+                lab, n = burn_seagrass(lab, image, ds.transform, ds.crs, feats, neg_px)
                 total += n
                 log(f"  seagrass survey {s['name']}: {how}; {n * 0.01:,.0f} ha labelled as seagrass")
                 if report is not None and n:
