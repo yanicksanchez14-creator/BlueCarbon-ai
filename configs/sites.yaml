@@ -32,6 +32,32 @@ sites:
   # Florida seagrass in tannic / turbid water, labelled from the FWC statewide seagrass survey
   - {name: charlotte_harbor_fl,  bbox: [-82.300, 26.650, -82.050, 26.900], role: train, seagrass_unmapped: true, note: "Seagrass and mangrove, Pine Island Sound and Charlotte Harbor"}
   - {name: cedar_key_fl,         bbox: [-83.150, 29.050, -82.900, 29.250], role: train, seagrass_unmapped: true, note: "Seagrass flats and salt marsh, Big Bend coast"}
+  # ---- Expansion: more seagrass, salt marsh and mangrove on every continent ----
+  # Clear-water seagrass mapped by the Allen Coral Atlas
+  - {name: puerto_morelos_mx,    bbox: [-86.950, 20.750, -86.800, 20.950], role: train, note: "Seagrass lagoon behind the Mesoamerican Reef, Yucatan"}
+  - {name: marawah_ae,           bbox: [53.050, 24.150, 53.350, 24.400],   role: train, note: "Seagrass beds and mangrove, Marawah Marine Biosphere Reserve"}
+  - {name: bazaruto_mz,          bbox: [35.250, -21.850, 35.500, -21.550], role: train, note: "Seagrass meadows of the Bazaruto Archipelago"}
+  - {name: coron_ph,             bbox: [119.950, 12.050, 120.200, 12.250], role: train, note: "Seagrass and mangrove, Calamian Islands"}
+  - {name: jobos_bay_pr,         bbox: [-66.300, 17.900, -66.150, 17.980], role: train, note: "Mangrove and seagrass, Jobos Bay reserve"}
+  - {name: al_wajh_sa,           bbox: [36.350, 26.050, 36.600, 26.300],   role: train, note: "Seagrass and reef lagoon, Al Wajh Bank, Red Sea"}
+  # Florida seagrass in murky water, labelled from the FWC statewide survey
+  - {name: st_joseph_bay_fl,     bbox: [-85.430, 29.750, -85.300, 29.900], role: train, seagrass_unmapped: true, note: "Seagrass meadows, St. Joseph Bay aquatic preserve"}
+  - {name: indian_river_fl,      bbox: [-80.620, 27.800, -80.400, 28.000], role: train, seagrass_unmapped: true, note: "Seagrass and mangrove, Indian River Lagoon"}
+  - {name: biscayne_bay_fl,      bbox: [-80.300, 25.450, -80.150, 25.650], role: train, seagrass_unmapped: true, note: "Seagrass and mangrove, Biscayne Bay"}
+  # Temperate salt marsh
+  - {name: delaware_bay_nj,      bbox: [-75.150, 39.150, -74.900, 39.350], role: train, note: "Salt marsh, Delaware Bay shore"}
+  - {name: morecambe_bay_uk,     bbox: [-2.950, 54.100, -2.750, 54.250],   role: train, note: "Salt marsh and sand flats, Morecambe Bay"}
+  - {name: mont_st_michel_fr,    bbox: [-1.650, 48.600, -1.400, 48.700],   role: train, note: "Salt meadows of the Bay of Mont-Saint-Michel"}
+  - {name: chongming_cn,         bbox: [121.850, 31.450, 122.050, 31.600], role: train, note: "Salt marsh and tidal flats, Chongming Dongtan, Yangtze estuary"}
+  - {name: bahia_blanca_ar,      bbox: [-62.400, -38.950, -62.100, -38.750], role: train, note: "Salt marsh and tidal flats, Bahia Blanca estuary"}
+  - {name: westernport_au,       bbox: [145.300, -38.400, 145.550, -38.200], role: train, note: "Temperate mangrove, salt marsh and seagrass, Western Port"}
+  - {name: knysna_za,            bbox: [23.000, -34.100, 23.150, -34.000], role: train, seagrass_unmapped: true, note: "Salt marsh and eelgrass, Knysna estuary"}
+  # Mangrove
+  - {name: ca_mau_vn,            bbox: [104.750, 8.550, 105.000, 8.800],   role: train, note: "Mangrove forest, Ca Mau peninsula, Mekong delta"}
+  - {name: zambezi_delta_mz,     bbox: [36.100, -18.950, 36.400, -18.700], role: train, note: "Mangrove forest, Zambezi delta"}
+  # Two more estuaries held out of training, so generalization is measured on more coastlines
+  - {name: plum_island_ma,       bbox: [-70.900, 42.680, -70.780, 42.800], role: test,  note: "Held-out: Great Marsh salt marsh, Massachusetts"}
+  - {name: shoalwater_bay_au,    bbox: [150.250, -22.550, 150.500, -22.300], role: test, note: "Held-out: mangrove and seagrass, Great Barrier Reef coast"}
   - {name: moreton_bay_au,       bbox: [153.100, -27.500, 153.350, -27.250], role: test, seagrass_unmapped: true, note: "Held-out: mangrove, salt marsh, seagrass"}
   - {name: tampa_bay_fl,         bbox: [-82.700, 27.600, -82.500, 27.800], role: test, seagrass_unmapped: true, note: "Held-out: mangrove + seagrass"}
 
