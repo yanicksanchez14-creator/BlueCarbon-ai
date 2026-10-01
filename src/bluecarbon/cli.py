@@ -60,6 +60,11 @@ def fetch(config: str = CfgOpt, sites: str = SitesOpt, only: list[str] = typer.O
         info: dict = {}
         gee.download(gee.reference_labels(region, cfg, info, site.get("seagrass_unmapped", False)), site["bbox"], d / "label.tif", cfg, "uint8", 255,
                      ["label"])
+        if cfg.labels.seagrass_surveys:
+            from .surveys import apply_surveys
+
+            apply_surveys(d / "label.tif", d / "image.tif", site["bbox"], cfg.labels.seagrass_surveys, info,
+                          log=typer.echo)
         hist = postprocess_label_file(d / "label.tif", cfg.labels.boundary_ignore_px, cfg.labels.overrides)
         (d / "meta.json").write_text(json.dumps({**site, "year": year, "label_px": hist, **info}, indent=2))
         typer.echo(f"[{site['name']}] label pixels: {hist}  sources: {info.get('label_sources')}")

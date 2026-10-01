@@ -28,6 +28,22 @@ labels:
   tidal_wetland_min_prob: 50
   # Extra seagrass polygons (Earth Engine FeatureCollection ids), e.g. regional eelgrass surveys.
   seagrass_vectors: []
+  # Regional seagrass survey maps, downloaded from public web services during `fetch` and burned in as
+  # seagrass over water (see src/bluecarbon/surveys.py). They cover murky and subtropical water the
+  # Allen Coral Atlas does not. `extent` = [lon_min, lat_min, lon_max, lat_max] the survey covers.
+  seagrass_surveys:
+    - name: fwc-florida-seagrass
+      kind: arcgis
+      url: https://gis.myfwc.com/hosting/rest/services/Open_Data/Seagrass_Statewide/MapServer/15
+      where: "SOURCEDATE >= '2010'"   # skip surveys older than 2010 (1987-2009 meadow outlines)
+      extent: [-88.0, 24.3, -79.8, 31.1]
+      citation: "Florida Fish and Wildlife Conservation Commission, Seagrass Statewide (1987-2025 compilation)"
+    - name: seamap-moreton-bay-2015
+      kind: wfs
+      url: https://geoserver.imas.utas.edu.au/geoserver/seamap/wfs
+      layer: SeamapAus_QLD_MoretonBay_seagrass_2015
+      extent: [152.9, -27.9, 153.6, -26.9]
+      citation: "Lyons, Roelfsema et al., Seagrass cover map for Moreton Bay (2015), Seamap Australia"
   # GWL_FCS30 global 30 m wetland map (Zhang et al. 2023), which has an explicit salt marsh class
   # (186; 181 swamp, 182 marsh = freshwater). Salt marsh is labelled where it agrees with
   # WorldCover vegetation; tidal-zone vegetation it does NOT call wetland is left unlabelled.

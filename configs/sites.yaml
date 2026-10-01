@@ -29,7 +29,10 @@ sites:
   - {name: venice_lagoon_it,     bbox: [12.300, 45.420, 12.500, 45.550],   role: train, seagrass_unmapped: true, note: "Salt marshes (barene) of the northern Venice Lagoon"}
   - {name: yellow_river_cn,      bbox: [118.950, 37.650, 119.250, 37.850], role: train, note: "Salt marsh and tidal flats, Yellow River Delta"}
   - {name: shark_bay_au,         bbox: [113.700, -26.050, 113.950, -25.800], role: train, seagrass_unmapped: true, note: "Seagrass banks, Shark Bay World Heritage Area"}
-  - {name: moreton_bay_au,       bbox: [153.100, -27.500, 153.350, -27.250], role: test, note: "Held-out: mangrove, salt marsh, seagrass"}
+  # Florida seagrass in tannic / turbid water, labelled from the FWC statewide seagrass survey
+  - {name: charlotte_harbor_fl,  bbox: [-82.300, 26.650, -82.050, 26.900], role: train, seagrass_unmapped: true, note: "Seagrass and mangrove, Pine Island Sound and Charlotte Harbor"}
+  - {name: cedar_key_fl,         bbox: [-83.150, 29.050, -82.900, 29.250], role: train, seagrass_unmapped: true, note: "Seagrass flats and salt marsh, Big Bend coast"}
+  - {name: moreton_bay_au,       bbox: [153.100, -27.500, 153.350, -27.250], role: test, seagrass_unmapped: true, note: "Held-out: mangrove, salt marsh, seagrass"}
   - {name: tampa_bay_fl,         bbox: [-82.700, 27.600, -82.500, 27.800], role: test, seagrass_unmapped: true, note: "Held-out: mangrove + seagrass"}
 
 # Before/after case study shown in the demo app.

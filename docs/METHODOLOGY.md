@@ -32,7 +32,7 @@ or made with index thresholds:
 | Salt marsh | WorldCover herbaceous, grass or shrub cover that the GWL_FCS30 wetland map (Zhang et al. 2023) classes as salt marsh. Tidal-zone vegetation it calls non-wetland is left unlabelled |
 | Freshwater wetland | WorldCover herbaceous wetland outside the tidal zone, or that GWL_FCS30 calls swamp / marsh |
 | Tidal flat | Murray et al. global intertidal change |
-| Seagrass | Allen Coral Atlas benthic map (tropics); local surveys can be added as polygons. At sites with seagrass that no map covers (e.g. Florida Bay, Tampa Bay), water outside the Atlas footprint is left unlabelled rather than taught as open water |
+| Seagrass | Allen Coral Atlas benthic map (tropics), plus official survey maps where they exist: the FWC Florida statewide seagrass map (surveys from 2010 on) and the 2015 Moreton Bay seagrass map (Seamap Australia), burned in over water only. At sites with seagrass that no map covers (e.g. Florida Bay, Tampa Bay), water outside the Atlas footprint is left unlabelled rather than taught as open water |
 
 Pixels within 1 px of a class boundary are ignored, because edges are where global products are
 least reliable.

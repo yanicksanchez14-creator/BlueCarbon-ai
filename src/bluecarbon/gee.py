@@ -183,7 +183,7 @@ def tidal_zone(cfg: Config):
     return dem.lte(3).And(near_water), "elevation-fallback"
 
 
-LABEL_VERSION = "labels-v4"  # bump when the label rules change, so `fetch --labels-only` rebuilds
+LABEL_VERSION = "labels-v5"  # bump when the label rules change, so `fetch --labels-only` rebuilds
 
 
 def wetland_map(cfg: Config):

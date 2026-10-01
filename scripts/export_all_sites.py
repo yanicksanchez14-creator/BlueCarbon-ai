@@ -40,6 +40,8 @@ TITLES = {
     "venice_lagoon_it": ("Venice Lagoon", "Veneto, Italy"),
     "yellow_river_cn": ("Yellow River Delta", "Shandong, China"),
     "shark_bay_au": ("Shark Bay", "Western Australia"),
+    "charlotte_harbor_fl": ("Charlotte Harbor", "Florida, USA"),
+    "cedar_key_fl": ("Cedar Key, Big Bend", "Florida, USA"),
 }
 
 
