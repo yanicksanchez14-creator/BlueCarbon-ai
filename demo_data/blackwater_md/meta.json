@@ -1,0 +1,236 @@
+{
+  "title": "Blackwater, Chesapeake Bay",
+  "description": "Brackish tidal marsh, Chesapeake Bay. Sentinel-2 2021 composite. This area was part of the training data, so the map looks better than it would on a new coastline.",
+  "classes": [
+    {
+      "id": 0,
+      "key": "water",
+      "name": "Open water",
+      "color": "#1f5fbf",
+      "blue_carbon": false
+    },
+    {
+      "id": 1,
+      "key": "mangrove",
+      "name": "Mangrove",
+      "color": "#0b7a3e",
+      "blue_carbon": true
+    },
+    {
+      "id": 2,
+      "key": "saltmarsh",
+      "name": "Salt marsh",
+      "color": "#9bb52a",
+      "blue_carbon": true
+    },
+    {
+      "id": 3,
+      "key": "seagrass",
+      "name": "Seagrass",
+      "color": "#14a3a0",
+      "blue_carbon": true
+    },
+    {
+      "id": 4,
+      "key": "tidal_flat",
+      "name": "Tidal flat / bare",
+      "color": "#c07a2c",
+      "blue_carbon": false
+    },
+    {
+      "id": 5,
+      "key": "other_land",
+      "name": "Other land",
+      "color": "#8b9199",
+      "blue_carbon": false
+    },
+    {
+      "id": 6,
+      "key": "freshwater",
+      "name": "Freshwater wetland",
+      "color": "#a0529b",
+      "blue_carbon": false
+    }
+  ],
+  "model": {
+    "arch": "Unet",
+    "encoder": "resnet34",
+    "kind": "unet",
+    "test": {
+      "overall_accuracy": 0.9299,
+      "kappa": 0.8956,
+      "mIoU": 0.7678,
+      "macro_f1": 0.8575,
+      "iou": {
+        "water": 0.9088,
+        "mangrove": 0.9446,
+        "saltmarsh": 0.8057,
+        "seagrass": 0.4524,
+        "tidal_flat": 0.6754,
+        "other_land": 0.93,
+        "freshwater": 0.6579
+      },
+      "f1": {
+        "water": 0.9522,
+        "mangrove": 0.9715,
+        "saltmarsh": 0.8924,
+        "seagrass": 0.623,
+        "tidal_flat": 0.8063,
+        "other_land": 0.9638,
+        "freshwater": 0.7937
+      },
+      "precision": {
+        "water": 0.978,
+        "mangrove": 0.9555,
+        "saltmarsh": 0.8892,
+        "seagrass": 0.5241,
+        "tidal_flat": 0.7792,
+        "other_land": 0.9717,
+        "freshwater": 0.7155
+      },
+      "recall": {
+        "water": 0.9277,
+        "mangrove": 0.988,
+        "saltmarsh": 0.8955,
+        "seagrass": 0.7678,
+        "tidal_flat": 0.8353,
+        "other_land": 0.9559,
+        "freshwater": 0.891
+      },
+      "support_px": {
+        "water": 9957783,
+        "mangrove": 1809602,
+        "saltmarsh": 423975,
+        "seagrass": 648908,
+        "tidal_flat": 790163,
+        "other_land": 5366144,
+        "freshwater": 718548
+      }
+    },
+    "name": "BlueCarbon-AI v2",
+    "pilot": false,
+    "evaluation": "non-overlapping 5 km spatial blocks plus three estuaries never used in training (Mission Bay, Moreton Bay, Tampa Bay)",
+    "training_data": "Sentinel-2 2021 composites and clear-water images of 19 coastal sites on six continents, labelled from ESA WorldCover, the GWL_FCS30 wetland map, Murray et al. tidal flats and the Allen Coral Atlas",
+    "uses_context": true
+  },
+  "kind": "single",
+  "bounds": [
+    [
+      38.29759030830559,
+      -76.25269746704481
+    ],
+    [
+      38.45244362326867,
+      -75.99785092518414
+    ]
+  ],
+  "report": {
+    "areas_ha": {
+      "water": 11604.53,
+      "mangrove": 0.0,
+      "saltmarsh": 12550.0,
+      "seagrass": 0.0,
+      "tidal_flat": 9.01,
+      "other_land": 8962.990000000002,
+      "freshwater": 4198.99
+    },
+    "error_adjusted_areas_ha": {
+      "water": {
+        "mapped_ha": 11604.53,
+        "adjusted_ha": 11786.38,
+        "ci95_ha": 2.8
+      },
+      "mangrove": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 0.0,
+        "ci95_ha": 0.0
+      },
+      "saltmarsh": {
+        "mapped_ha": 12550.0,
+        "adjusted_ha": 12068.8,
+        "ci95_ha": 3.87
+      },
+      "seagrass": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 218.95,
+        "ci95_ha": 1.56
+      },
+      "tidal_flat": {
+        "mapped_ha": 9.01,
+        "adjusted_ha": 199.11,
+        "ci95_ha": 1.29
+      },
+      "other_land": {
+        "mapped_ha": 8962.99,
+        "adjusted_ha": 9809.76,
+        "ci95_ha": 4.33
+      },
+      "freshwater": {
+        "mapped_ha": 4198.99,
+        "adjusted_ha": 3242.53,
+        "ci95_ha": 4.39
+      }
+    },
+    "carbon_area_basis": "error_adjusted",
+    "carbon": {
+      "classes": {
+        "saltmarsh": {
+          "area_ha": 12068.8,
+          "stock_tC": {
+            "mean": 3311301.4685829785,
+            "p05": 3149068.0770652015,
+            "p95": 3540271.2832086044
+          },
+          "stock_tCO2e": {
+            "mean": 12142542.485293781,
+            "p05": 11547632.638598096,
+            "p95": 12982174.795525951
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 40031.73468788684,
+            "p05": 33981.38604959734,
+            "p95": 45857.30812843845
+          }
+        },
+        "seagrass": {
+          "area_ha": 218.95,
+          "stock_tC": {
+            "mean": 24392.658774455755,
+            "p05": 20405.831579680053,
+            "p95": 28687.105107033614
+          },
+          "stock_tCO2e": {
+            "mean": 89447.87972592926,
+            "p05": 74828.18440268675,
+            "p95": 105195.61442749226
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 357.00806024908354,
+            "p05": 224.28761649666575,
+            "p95": 499.467236385018
+          }
+        }
+      },
+      "blue_carbon_area_ha": 12287.75,
+      "total_stock_tCO2e": {
+        "mean": 12231990.365019709,
+        "p05": 11636705.952849735,
+        "p95": 13073969.518788226
+      },
+      "total_sequestration_tCO2e_per_yr": {
+        "mean": 40388.74274813593,
+        "p05": 34335.104923597326,
+        "p95": 46169.429059315466
+      },
+      "indicative_annual_value_usd": {
+        "low": 605831.1412220389,
+        "mid": 1009718.5687033981,
+        "high": 1615549.709925437
+      },
+      "method": "IPCC 2013 Wetlands Supplement Tier 1; triangular Monte Carlo, n=5000"
+    }
+  },
+  "region": "Maryland, USA",
+  "period": "Full year 2021",
+  "held_out": false
+}

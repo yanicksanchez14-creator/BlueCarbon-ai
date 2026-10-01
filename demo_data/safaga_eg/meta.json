@@ -1,0 +1,254 @@
+{
+  "title": "Safaga",
+  "description": "Seagrass meadows, Red Sea. Sentinel-2 2021 composite. This area was part of the training data, so the map looks better than it would on a new coastline.",
+  "classes": [
+    {
+      "id": 0,
+      "key": "water",
+      "name": "Open water",
+      "color": "#1f5fbf",
+      "blue_carbon": false
+    },
+    {
+      "id": 1,
+      "key": "mangrove",
+      "name": "Mangrove",
+      "color": "#0b7a3e",
+      "blue_carbon": true
+    },
+    {
+      "id": 2,
+      "key": "saltmarsh",
+      "name": "Salt marsh",
+      "color": "#9bb52a",
+      "blue_carbon": true
+    },
+    {
+      "id": 3,
+      "key": "seagrass",
+      "name": "Seagrass",
+      "color": "#14a3a0",
+      "blue_carbon": true
+    },
+    {
+      "id": 4,
+      "key": "tidal_flat",
+      "name": "Tidal flat / bare",
+      "color": "#c07a2c",
+      "blue_carbon": false
+    },
+    {
+      "id": 5,
+      "key": "other_land",
+      "name": "Other land",
+      "color": "#8b9199",
+      "blue_carbon": false
+    },
+    {
+      "id": 6,
+      "key": "freshwater",
+      "name": "Freshwater wetland",
+      "color": "#a0529b",
+      "blue_carbon": false
+    }
+  ],
+  "model": {
+    "arch": "Unet",
+    "encoder": "resnet34",
+    "kind": "unet",
+    "test": {
+      "overall_accuracy": 0.9299,
+      "kappa": 0.8956,
+      "mIoU": 0.7678,
+      "macro_f1": 0.8575,
+      "iou": {
+        "water": 0.9088,
+        "mangrove": 0.9446,
+        "saltmarsh": 0.8057,
+        "seagrass": 0.4524,
+        "tidal_flat": 0.6754,
+        "other_land": 0.93,
+        "freshwater": 0.6579
+      },
+      "f1": {
+        "water": 0.9522,
+        "mangrove": 0.9715,
+        "saltmarsh": 0.8924,
+        "seagrass": 0.623,
+        "tidal_flat": 0.8063,
+        "other_land": 0.9638,
+        "freshwater": 0.7937
+      },
+      "precision": {
+        "water": 0.978,
+        "mangrove": 0.9555,
+        "saltmarsh": 0.8892,
+        "seagrass": 0.5241,
+        "tidal_flat": 0.7792,
+        "other_land": 0.9717,
+        "freshwater": 0.7155
+      },
+      "recall": {
+        "water": 0.9277,
+        "mangrove": 0.988,
+        "saltmarsh": 0.8955,
+        "seagrass": 0.7678,
+        "tidal_flat": 0.8353,
+        "other_land": 0.9559,
+        "freshwater": 0.891
+      },
+      "support_px": {
+        "water": 9957783,
+        "mangrove": 1809602,
+        "saltmarsh": 423975,
+        "seagrass": 648908,
+        "tidal_flat": 790163,
+        "other_land": 5366144,
+        "freshwater": 718548
+      }
+    },
+    "name": "BlueCarbon-AI v2",
+    "pilot": false,
+    "evaluation": "non-overlapping 5 km spatial blocks plus three estuaries never used in training (Mission Bay, Moreton Bay, Tampa Bay)",
+    "training_data": "Sentinel-2 2021 composites and clear-water images of 19 coastal sites on six continents, labelled from ESA WorldCover, the GWL_FCS30 wetland map, Murray et al. tidal flats and the Allen Coral Atlas",
+    "uses_context": true
+  },
+  "kind": "single",
+  "bounds": [
+    [
+      26.64826220550213,
+      33.79821139133464
+    ],
+    [
+      26.90171241493152,
+      34.05243971613835
+    ]
+  ],
+  "report": {
+    "areas_ha": {
+      "water": 25530.47,
+      "mangrove": 42.61,
+      "saltmarsh": 0.0,
+      "seagrass": 58.44,
+      "tidal_flat": 666.41,
+      "other_land": 43622.3,
+      "freshwater": 0.0
+    },
+    "error_adjusted_areas_ha": {
+      "water": {
+        "mapped_ha": 25530.47,
+        "adjusted_ha": 25690.23,
+        "ci95_ha": 4.92
+      },
+      "mangrove": {
+        "mapped_ha": 42.61,
+        "adjusted_ha": 134.82,
+        "ci95_ha": 1.72
+      },
+      "saltmarsh": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 58.71,
+        "ci95_ha": 1.29
+      },
+      "seagrass": {
+        "mapped_ha": 58.44,
+        "adjusted_ha": 343.13,
+        "ci95_ha": 1.75
+      },
+      "tidal_flat": {
+        "mapped_ha": 666.41,
+        "adjusted_ha": 927.44,
+        "ci95_ha": 2.81
+      },
+      "other_land": {
+        "mapped_ha": 43622.3,
+        "adjusted_ha": 42406.73,
+        "ci95_ha": 6.18
+      },
+      "freshwater": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 359.17,
+        "ci95_ha": 3.33
+      }
+    },
+    "carbon_area_basis": "error_adjusted",
+    "carbon": {
+      "classes": {
+        "mangrove": {
+          "area_ha": 134.82,
+          "stock_tC": {
+            "mean": 70316.7128025728,
+            "p05": 66108.43063666753,
+            "p95": 74716.58833707919
+          },
+          "stock_tCO2e": {
+            "mean": 257851.38584703446,
+            "p05": 242419.61514465982,
+            "p95": 273985.72943206935
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 811.7316848284529,
+            "p05": 696.8865266827177,
+            "p95": 928.7281601834543
+          }
+        },
+        "saltmarsh": {
+          "area_ha": 58.71,
+          "stock_tC": {
+            "mean": 16101.373045498394,
+            "p05": 15244.545319105366,
+            "p95": 17246.52254648758
+          },
+          "stock_tCO2e": {
+            "mean": 59043.734957842615,
+            "p05": 55901.747685159375,
+            "p95": 63242.99817796996
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 194.7079334445714,
+            "p05": 164.98917475917116,
+            "p95": 224.30098590043227
+          }
+        },
+        "seagrass": {
+          "area_ha": 343.13,
+          "stock_tC": {
+            "mean": 38269.56311732288,
+            "p05": 32047.126055646808,
+            "p95": 44888.17675037807
+          },
+          "stock_tCO2e": {
+            "mean": 140334.487951223,
+            "p05": 117516.81124605684,
+            "p95": 164604.94414363638
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 557.807570178215,
+            "p05": 348.7503507016554,
+            "p95": 782.5580132187184
+          }
+        }
+      },
+      "blue_carbon_area_ha": 536.66,
+      "total_stock_tCO2e": {
+        "mean": 457229.60875610006,
+        "p05": 429540.4315232642,
+        "p95": 486222.6110274389
+      },
+      "total_sequestration_tCO2e_per_yr": {
+        "mean": 1564.247188451239,
+        "p05": 1326.5461308029094,
+        "p95": 1811.2754650609456
+      },
+      "indicative_annual_value_usd": {
+        "low": 23463.707826768587,
+        "mid": 39106.17971128097,
+        "high": 62569.88753804956
+      },
+      "method": "IPCC 2013 Wetlands Supplement Tier 1; triangular Monte Carlo, n=5000"
+    }
+  },
+  "region": "Red Sea, Egypt",
+  "period": "Full year 2021",
+  "held_out": false
+}

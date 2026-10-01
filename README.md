@@ -36,8 +36,9 @@ scale.
 - **End-to-end geospatial ML pipeline.** Earth Engine ingestion, Cloud Score+ cloud masking, seasonal
   median composites, and tiled download of any area size in the correct map projection. One CLI and one
   YAML config drive every stage.
-- **Trained on published scientific maps.** Reference labels are fused from ESA WorldCover, the Murray
-  et al. global tidal-flat maps and the Allen Coral Atlas across **11 coastal sites on four continents**.
+- **Trained on published scientific maps.** Reference labels are fused from ESA WorldCover, the GWL_FCS30
+  global wetland map, the Murray et al. global tidal-flat maps and the Allen Coral Atlas across **22 coastal
+  sites on six continents**.
 - **Evaluation designed not to cheat.** Training tiles never overlap, whole 5 km blocks go to one data
   split, and entire estuaries are held out, so scores reflect performance on coastlines the model has
   never seen.
@@ -52,30 +53,37 @@ scale.
 <!-- results:start -->
 ## Results
 
-The model was trained on 11 coastal sites and scored on areas it **never saw during training**: held-out
-5 km blocks from every site, plus three entire estuaries (Mission Bay, Moreton Bay and Tampa Bay). The
-deep-learning model (U-Net, ResNet-34 encoder) beat the gradient-boosted alternative and is the one
-deployed.
+The model was trained on 19 coastal sites on six continents and scored on areas it **never saw during
+training**: held-out 5 km blocks from every site, plus three entire estuaries (Mission Bay, Moreton Bay
+and Tampa Bay). The deep-learning model (U-Net, ResNet-34 encoder) beat the gradient-boosted alternative
+and is the one deployed.
 
 | Habitat | IoU | F1 | What it means |
 |---|---:|---:|---|
-| **Mangrove** ◆ | **0.90** | **0.95** | Reliable, including on unseen estuaries (Tampa Bay 0.86, Moreton Bay 0.77) |
-| Open water | 0.96 | 0.98 | Reliable |
-| Other land | 0.91 | 0.95 | Reliable |
-| Freshwater wetland | 0.61 | 0.76 | Separates inland marsh from tidal salt marsh |
-| Tidal flat | 0.54 | 0.70 | Moderate |
-| **Salt marsh** ◆ | **0.35** | **0.52** | Varies by region: 0.76 on unseen Mission Bay, 0.80 in the Wadden Sea, weaker in San Francisco Bay |
-| **Seagrass** ◆ | 0.00 | 0.00 | Not yet detected: global seagrass labels cover only one training site |
-| **Mean (7 classes)** | **0.61** | **0.69** | |
+| **Mangrove** ◆ | **0.94** | **0.97** | Reliable, including on unseen estuaries (Tampa Bay 0.86, Moreton Bay 0.86) |
+| **Salt marsh** ◆ | **0.81** | **0.89** | Strong on large marshes (Georgia 0.99, unseen Mission Bay 0.78, Chesapeake 0.66); weak where marsh is a thin fringe |
+| **Seagrass** ◆ | **0.45** | **0.62** | Works in clear tropical water (Florida Keys 0.61, Belize 0.53); not yet in murky water (Moreton Bay 0.00) |
+| Open water | 0.91 | 0.95 | Reliable |
+| Other land | 0.93 | 0.96 | Reliable |
+| Freshwater wetland | 0.66 | 0.79 | Separates inland marsh from tidal salt marsh |
+| Tidal flat | 0.68 | 0.81 | Moderate |
+| **Mean (7 classes)** | **0.77** | **0.86** | |
 
 ◆ = blue carbon habitat. IoU (intersection over union) measures how well the predicted map overlaps
-the reference map, where 1.0 is a perfect match. Overall pixel accuracy (94%) is reported but isn't the
+the reference map, where 1.0 is a perfect match. Overall pixel accuracy (93%) is reported but isn't the
 headline number, because open water dominates it.
 
-**Next steps:** regional seagrass survey maps as training labels (seagrass is the main gap), per-region
-accuracy calibration, and low-tide image selection for intertidal habitats.
+**What changed from the previous model** (mangrove 0.90, salt marsh 0.35, seagrass 0.00): salt marsh
+labels from a dedicated wetland map, seagrass sites added, a clear-water image that lets the seafloor show
+through, elevation and tide as inputs, and per-estuary checks that caught a model relying on latitude
+as a shortcut.
 
-The live app includes 12 mapped sites, among them a 2018 → 2024 change analysis of Mission Bay.
+**Next steps:** regional seagrass survey maps (Florida, Queensland) as training labels for murky
+temperate water, and low-tide image selection for thin fringing marshes.
+
+![Held-out sites: satellite image (top) and BlueCarbon-AI habitat map (bottom)](docs/img/hero.png)
+
+The live app includes 23 mapped sites, among them a 2018 → 2024 change analysis of Mission Bay.
 <!-- results:end -->
 
 ## How it works
@@ -127,7 +135,7 @@ src/bluecarbon/
   carbon.py      carbon stock and sequestration with Monte Carlo uncertainty
   cli.py         `bluecarbon` command-line tool
 app/             Streamlit web app
-configs/         pipeline settings and the 11 study sites
+configs/         pipeline settings and the 22 study sites
 tests/           automated tests
 docs/            methodology and figures
 ```
@@ -140,8 +148,8 @@ from space because it grows underwater, and tides change what is visible in inte
 
 ## Data credits
 
-Sentinel-2 (ESA Copernicus) · Cloud Score+ (Google) · ESA WorldCover 2021 · Murray et al. global tidal
-flats · Allen Coral Atlas · NASADEM · IPCC 2013 Wetlands Supplement.
+Sentinel-2 (ESA Copernicus) · Cloud Score+ (Google) · ESA WorldCover 2021 · GWL_FCS30 (Zhang et al.)
+· Murray et al. global tidal flats · Allen Coral Atlas · NASADEM · IPCC 2013 Wetlands Supplement.
 
 ---
 

@@ -1,0 +1,236 @@
+{
+  "title": "Venice Lagoon",
+  "description": "Salt marshes (barene) of the northern Venice Lagoon. Sentinel-2 2021 composite. This area was part of the training data, so the map looks better than it would on a new coastline.",
+  "classes": [
+    {
+      "id": 0,
+      "key": "water",
+      "name": "Open water",
+      "color": "#1f5fbf",
+      "blue_carbon": false
+    },
+    {
+      "id": 1,
+      "key": "mangrove",
+      "name": "Mangrove",
+      "color": "#0b7a3e",
+      "blue_carbon": true
+    },
+    {
+      "id": 2,
+      "key": "saltmarsh",
+      "name": "Salt marsh",
+      "color": "#9bb52a",
+      "blue_carbon": true
+    },
+    {
+      "id": 3,
+      "key": "seagrass",
+      "name": "Seagrass",
+      "color": "#14a3a0",
+      "blue_carbon": true
+    },
+    {
+      "id": 4,
+      "key": "tidal_flat",
+      "name": "Tidal flat / bare",
+      "color": "#c07a2c",
+      "blue_carbon": false
+    },
+    {
+      "id": 5,
+      "key": "other_land",
+      "name": "Other land",
+      "color": "#8b9199",
+      "blue_carbon": false
+    },
+    {
+      "id": 6,
+      "key": "freshwater",
+      "name": "Freshwater wetland",
+      "color": "#a0529b",
+      "blue_carbon": false
+    }
+  ],
+  "model": {
+    "arch": "Unet",
+    "encoder": "resnet34",
+    "kind": "unet",
+    "test": {
+      "overall_accuracy": 0.9299,
+      "kappa": 0.8956,
+      "mIoU": 0.7678,
+      "macro_f1": 0.8575,
+      "iou": {
+        "water": 0.9088,
+        "mangrove": 0.9446,
+        "saltmarsh": 0.8057,
+        "seagrass": 0.4524,
+        "tidal_flat": 0.6754,
+        "other_land": 0.93,
+        "freshwater": 0.6579
+      },
+      "f1": {
+        "water": 0.9522,
+        "mangrove": 0.9715,
+        "saltmarsh": 0.8924,
+        "seagrass": 0.623,
+        "tidal_flat": 0.8063,
+        "other_land": 0.9638,
+        "freshwater": 0.7937
+      },
+      "precision": {
+        "water": 0.978,
+        "mangrove": 0.9555,
+        "saltmarsh": 0.8892,
+        "seagrass": 0.5241,
+        "tidal_flat": 0.7792,
+        "other_land": 0.9717,
+        "freshwater": 0.7155
+      },
+      "recall": {
+        "water": 0.9277,
+        "mangrove": 0.988,
+        "saltmarsh": 0.8955,
+        "seagrass": 0.7678,
+        "tidal_flat": 0.8353,
+        "other_land": 0.9559,
+        "freshwater": 0.891
+      },
+      "support_px": {
+        "water": 9957783,
+        "mangrove": 1809602,
+        "saltmarsh": 423975,
+        "seagrass": 648908,
+        "tidal_flat": 790163,
+        "other_land": 5366144,
+        "freshwater": 718548
+      }
+    },
+    "name": "BlueCarbon-AI v2",
+    "pilot": false,
+    "evaluation": "non-overlapping 5 km spatial blocks plus three estuaries never used in training (Mission Bay, Moreton Bay, Tampa Bay)",
+    "training_data": "Sentinel-2 2021 composites and clear-water images of 19 coastal sites on six continents, labelled from ESA WorldCover, the GWL_FCS30 wetland map, Murray et al. tidal flats and the Allen Coral Atlas",
+    "uses_context": true
+  },
+  "kind": "single",
+  "bounds": [
+    [
+      45.41538803198597,
+      12.293782003626411
+    ],
+    [
+      45.55457340562503,
+      12.505756010223536
+    ]
+  ],
+  "report": {
+    "areas_ha": {
+      "water": 11150.23,
+      "mangrove": 0.0,
+      "saltmarsh": 2201.01,
+      "seagrass": 0.22,
+      "tidal_flat": 2075.52,
+      "other_land": 8555.46,
+      "freshwater": 103.16000000000001
+    },
+    "error_adjusted_areas_ha": {
+      "water": {
+        "mapped_ha": 11150.23,
+        "adjusted_ha": 11396.4,
+        "ci95_ha": 2.15
+      },
+      "mangrove": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 0.0,
+        "ci95_ha": 0.0
+      },
+      "saltmarsh": {
+        "mapped_ha": 2201.01,
+        "adjusted_ha": 2139.57,
+        "ci95_ha": 0.86
+      },
+      "seagrass": {
+        "mapped_ha": 0.22,
+        "adjusted_ha": 209.13,
+        "ci95_ha": 1.11
+      },
+      "tidal_flat": {
+        "mapped_ha": 2075.52,
+        "adjusted_ha": 1763.7,
+        "ci95_ha": 2.02
+      },
+      "other_land": {
+        "mapped_ha": 8555.46,
+        "adjusted_ha": 8393.91,
+        "ci95_ha": 1.33
+      },
+      "freshwater": {
+        "mapped_ha": 103.16,
+        "adjusted_ha": 182.89,
+        "ci95_ha": 0.8
+      }
+    },
+    "carbon_area_basis": "error_adjusted",
+    "carbon": {
+      "classes": {
+        "saltmarsh": {
+          "area_ha": 2139.57,
+          "stock_tC": {
+            "mean": 587031.0036714427,
+            "p05": 558275.1007618195,
+            "p95": 627626.2526311819
+          },
+          "stock_tCO2e": {
+            "mean": 2152642.6904631807,
+            "p05": 2047194.794493592,
+            "p95": 2301505.4683985435
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 7096.868522689417,
+            "p05": 6023.930352335287,
+            "p95": 8130.062390544233
+          }
+        },
+        "seagrass": {
+          "area_ha": 209.13,
+          "stock_tC": {
+            "mean": 23298.70943413379,
+            "p05": 19495.91323583956,
+            "p95": 27397.74201193376
+          },
+          "stock_tCO2e": {
+            "mean": 85436.36749496861,
+            "p05": 71491.51383582364,
+            "p95": 100467.51995776109
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 340.9982929696532,
+            "p05": 214.10607615806728,
+            "p95": 476.99095253012257
+          }
+        }
+      },
+      "blue_carbon_area_ha": 2348.7000000000003,
+      "total_stock_tCO2e": {
+        "mean": 2238079.057958149,
+        "p05": 2131292.7644269825,
+        "p95": 2387234.8992822026
+      },
+      "total_sequestration_tCO2e_per_yr": {
+        "mean": 7437.86681565907,
+        "p05": 6361.92901120727,
+        "p95": 8474.43160675939
+      },
+      "indicative_annual_value_usd": {
+        "low": 111568.00223488605,
+        "mid": 185946.67039147674,
+        "high": 297514.6726263628
+      },
+      "method": "IPCC 2013 Wetlands Supplement Tier 1; triangular Monte Carlo, n=5000"
+    }
+  },
+  "region": "Veneto, Italy",
+  "period": "Full year 2021",
+  "held_out": false
+}

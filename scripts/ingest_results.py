@@ -29,8 +29,10 @@ MODEL_INFO = {
     "pilot": False,
     "evaluation": "non-overlapping 5 km spatial blocks plus three estuaries never used in training "
                   "(Mission Bay, Moreton Bay, Tampa Bay)",
-    "training_data": "Sentinel-2 2021 composites of 11 coastal sites on four continents, labelled from ESA "
-                     "WorldCover, Murray et al. tidal flats and the Allen Coral Atlas",
+    "training_data": "Sentinel-2 2021 composites and clear-water images of 19 coastal sites on six continents, "
+                     "labelled from ESA WorldCover, the GWL_FCS30 wetland map, Murray et al. tidal flats and "
+                     "the Allen Coral Atlas",
+    "uses_context": True,
 }
 PILOT_PATHS = ["models/pilot_spectral_mission_bay_2018.json", "data/pilot", "scripts/pilot_spectral.py",
                "scripts/pilot_mission_bay.py", "docs/EXPERIMENTS.md", "docs/img/pilot_confusion.png"]

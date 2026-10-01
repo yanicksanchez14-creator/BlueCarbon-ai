@@ -277,7 +277,7 @@ T_SCORE = ("How closely the model's map overlapped with trusted reference maps, 
            "1.00 = perfect match, 0 = no match.")
 T_S2 = "Sentinel-2 is a pair of European Space Agency satellites that photograph every coastline on Earth every 5 days, free."
 T_PILOT = ("Trained only on hand-labelled data from one bay (Mission Bay, 2018). It is well tested here, but other "
-           "coastlines look different. The full model trains on 11 coastal sites on four continents.")
+           "coastlines look different. The full model trains on 19 coastal sites on six continents.")
 
 def png_uri(path: Path) -> str:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
@@ -549,7 +549,7 @@ def summary_html(meta: dict, report: dict) -> str:
         pts.append(("How much to trust it", conf + "."))
     if model.get("pilot"):
         pts.append(("What's next", "This map comes from the pilot model, trained on hand-labelled data from this bay. "
-                                  "The full BlueCarbon-AI model trains on 11 coastal sites on four continents so it "
+                                  "The full BlueCarbon-AI model trains on 19 coastal sites on six continents so it "
                                   "works on coastlines it has never seen, including mangrove forests."))
     if a.get("freshwater", 0) >= 0.05:
         pts.insert(2 if len(pts) >= 2 else len(pts), ("Freshwater wetland",
@@ -1019,12 +1019,17 @@ with tab_method:
 (<code>cs_cdf ≥ 0.6</code>). Ten bands (B2–B8A, B11, B12) are exported at 10&nbsp;m in the local UTM zone,
 so every pixel has a true ground area. The model also receives four indices: NDVI (vegetation), NDWI and
 MNDWI (water), and NDMI (canopy moisture, which separates mangrove from dry upland).</p>
+<p><b>Clear-water image.</b> Seagrass is only visible where the seafloor shows through, and a seasonal median blends
+clear days with murky, glinty ones. So each scene also gets a clear-water image: for every pixel, the single
+cloud-free observation with the least near-infrared reflectance (least sun glint, haze and white water). Its blue,
+green, red and near-infrared bands, plus two band ratios that are largely insensitive to water depth, are inputs.</p>
 <p><b>Context layers.</b> Some habitats look identical from space: tidal salt marsh and inland freshwater marsh,
-or dense salt marsh and young mangrove. So the model also gets three layers that describe <i>where</i> a pixel is:
-elevation (NASADEM), the probability that the tide reaches it (Murray et al., 2022), and its distance from the
-equator. Two of these also help build the reference labels, so part of what the model learns from them is that
-labelling rule. That is why the scores on held-out estuaries, not the training fit, are the numbers that count.
-Mangroves are also limited to their known latitude range (39°S–32.5°N), because frost kills them.</p>
+or dense salt marsh and young mangrove. So the model also gets two layers that describe <i>where</i> a pixel is:
+elevation (NASADEM) and the probability that the tide reaches it (Murray et al., 2022). Both also help build the
+reference labels, so part of what the model learns from them is that labelling rule. That is why the scores on
+held-out estuaries, not the training fit, are the numbers that count. Latitude is deliberately <i>not</i> an input:
+an earlier model used it as a shortcut and missed mangroves on unseen coasts. Instead, mangroves are limited to
+their known latitude range (39°S–32.5°N) by an explicit rule, because frost kills them.</p>
 
 <h3>Reference labels</h3>
 <p>Training labels come from independent, peer-reviewed global products, not from thresholds on the
@@ -1033,18 +1038,19 @@ products are least reliable. Local survey polygons (for example eelgrass surveys
 <table class="bc-table"><thead><tr><th>Class</th><th>Source</th><th>Rule</th></tr></thead><tbody>
 <tr><td>Open water · Other land</td><td>ESA WorldCover 2021 (10 m)</td><td>Classes 80 · 10–60, 100</td></tr>
 <tr><td>Mangrove</td><td>ESA WorldCover 2021</td><td>Class 95</td></tr>
-<tr><td>Salt marsh</td><td>ESA WorldCover + Murray et al. tidal wetlands + NASADEM</td><td>Herbaceous, grass or shrub cover inside the tidal zone, below 5 m</td></tr>
-<tr><td>Freshwater wetland</td><td>ESA WorldCover + Murray et al. tidal wetlands</td><td>Herbaceous wetland (90) outside the tidal zone. Mapped, but not counted as blue carbon</td></tr>
+<tr><td>Salt marsh</td><td>ESA WorldCover + GWL_FCS30 wetland map (Zhang et al., 2023)</td><td>Herbaceous, grass or shrub cover that GWL_FCS30 classes as salt marsh. Tidal-zone vegetation it calls non-wetland is left unlabelled</td></tr>
+<tr><td>Freshwater wetland</td><td>ESA WorldCover + GWL_FCS30 + Murray et al. tidal wetlands</td><td>Herbaceous wetland outside the tidal zone, or classed as swamp or marsh. Mapped, but not counted as blue carbon</td></tr>
 <tr><td>Tidal flat</td><td>Murray et al., global intertidal</td><td>Tidal flat classification</td></tr>
-<tr><td>Seagrass</td><td>Allen Coral Atlas benthic map</td><td>Seagrass class (tropical coverage)</td></tr>
+<tr><td>Seagrass</td><td>Allen Coral Atlas benthic map</td><td>Seagrass class (tropical coverage). At sites with seagrass no map covers, such as Florida Bay and Tampa Bay, water outside the Atlas footprint is left unlabelled rather than taught as open water</td></tr>
 </tbody></table>
 
 <h3>Model and evaluation</h3>
-<p>A U-Net with a ResNet-34 encoder (<code>segmentation-models-pytorch</code>) and a 17-channel input stem, trained
+<p>A U-Net with a ResNet-34 encoder (<code>segmentation-models-pytorch</code>) and a 22-channel input stem, trained
 with cross-entropy plus Dice loss and square-root inverse-frequency class weights, AdamW with a one-cycle
 schedule, mixed precision and early stopping on validation mIoU.</p>
 <p>Evaluation is built so the model can't score well by memorizing. Chips never overlap, whole 5&nbsp;km blocks are
-assigned to a single split, and two complete estuaries (Moreton Bay, Tampa Bay) are never seen in training. The
+assigned to a single split, and three complete estuaries (Mission Bay, Moreton Bay, Tampa Bay) are never seen in
+training and are scored separately. The
 headline metrics are per-class IoU and F1. Overall accuracy is reported but not emphasized: a scene that is 70% water
 can score 90% accuracy while missing every marsh pixel.</p>
 
@@ -1067,8 +1073,8 @@ on its own.</p>
 <ul>
 <li>Tier 1 factors are global averages. They are suited to screening and prioritization, not to issuing credits,
 which requires field-measured stocks.</li>
-<li>Seagrass is spectrally close to water, and global seagrass labels cover only tropical reefs. Temperate
-meadows need local survey data.</li>
+<li>Seagrass is detected in clear tropical water but not yet in murky water (Moreton Bay), and global seagrass
+labels cover only tropical reefs. Temperate meadows need local survey data.</li>
 <li>Tides change what is exposed in intertidal zones, and a median composite averages across tidal states.</li>
 <li>Reference products carry their own errors, which the model partly learns. The confidence intervals treat pixels
 as independent samples, so they understate the true uncertainty.</li>
@@ -1080,6 +1086,7 @@ as independent samples, so they understate the true uncertainty.</li>
 <li>Olofsson, P. et al. (2014). Good practices for estimating area and assessing accuracy of land change. <i>Remote Sensing of Environment</i> 148.</li>
 <li>Zanaga, D. et al. (2022). ESA WorldCover 10 m 2021 v200.</li>
 <li>Murray, N. J. et al. (2019). The global distribution and trajectory of tidal flats. <i>Nature</i> 565.</li>
+<li>Zhang, X. et al. (2023). GWL_FCS30: a global 30 m wetland map with a fine classification system. <i>Earth System Science Data</i> 15.</li>
 <li>Allen Coral Atlas (2022). Imagery, maps and monitoring of the world's tropical coral reefs.</li>
 <li>Pasquarella, V. et al. (2023). Cloud Score+: comprehensive cloud and cloud-shadow detection for Sentinel-2.</li>
 </ul>

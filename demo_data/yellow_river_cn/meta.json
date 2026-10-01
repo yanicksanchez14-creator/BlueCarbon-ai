@@ -1,0 +1,236 @@
+{
+  "title": "Yellow River Delta",
+  "description": "Salt marsh and tidal flats, Yellow River Delta. Sentinel-2 2021 composite. This area was part of the training data, so the map looks better than it would on a new coastline.",
+  "classes": [
+    {
+      "id": 0,
+      "key": "water",
+      "name": "Open water",
+      "color": "#1f5fbf",
+      "blue_carbon": false
+    },
+    {
+      "id": 1,
+      "key": "mangrove",
+      "name": "Mangrove",
+      "color": "#0b7a3e",
+      "blue_carbon": true
+    },
+    {
+      "id": 2,
+      "key": "saltmarsh",
+      "name": "Salt marsh",
+      "color": "#9bb52a",
+      "blue_carbon": true
+    },
+    {
+      "id": 3,
+      "key": "seagrass",
+      "name": "Seagrass",
+      "color": "#14a3a0",
+      "blue_carbon": true
+    },
+    {
+      "id": 4,
+      "key": "tidal_flat",
+      "name": "Tidal flat / bare",
+      "color": "#c07a2c",
+      "blue_carbon": false
+    },
+    {
+      "id": 5,
+      "key": "other_land",
+      "name": "Other land",
+      "color": "#8b9199",
+      "blue_carbon": false
+    },
+    {
+      "id": 6,
+      "key": "freshwater",
+      "name": "Freshwater wetland",
+      "color": "#a0529b",
+      "blue_carbon": false
+    }
+  ],
+  "model": {
+    "arch": "Unet",
+    "encoder": "resnet34",
+    "kind": "unet",
+    "test": {
+      "overall_accuracy": 0.9299,
+      "kappa": 0.8956,
+      "mIoU": 0.7678,
+      "macro_f1": 0.8575,
+      "iou": {
+        "water": 0.9088,
+        "mangrove": 0.9446,
+        "saltmarsh": 0.8057,
+        "seagrass": 0.4524,
+        "tidal_flat": 0.6754,
+        "other_land": 0.93,
+        "freshwater": 0.6579
+      },
+      "f1": {
+        "water": 0.9522,
+        "mangrove": 0.9715,
+        "saltmarsh": 0.8924,
+        "seagrass": 0.623,
+        "tidal_flat": 0.8063,
+        "other_land": 0.9638,
+        "freshwater": 0.7937
+      },
+      "precision": {
+        "water": 0.978,
+        "mangrove": 0.9555,
+        "saltmarsh": 0.8892,
+        "seagrass": 0.5241,
+        "tidal_flat": 0.7792,
+        "other_land": 0.9717,
+        "freshwater": 0.7155
+      },
+      "recall": {
+        "water": 0.9277,
+        "mangrove": 0.988,
+        "saltmarsh": 0.8955,
+        "seagrass": 0.7678,
+        "tidal_flat": 0.8353,
+        "other_land": 0.9559,
+        "freshwater": 0.891
+      },
+      "support_px": {
+        "water": 9957783,
+        "mangrove": 1809602,
+        "saltmarsh": 423975,
+        "seagrass": 648908,
+        "tidal_flat": 790163,
+        "other_land": 5366144,
+        "freshwater": 718548
+      }
+    },
+    "name": "BlueCarbon-AI v2",
+    "pilot": false,
+    "evaluation": "non-overlapping 5 km spatial blocks plus three estuaries never used in training (Mission Bay, Moreton Bay, Tampa Bay)",
+    "training_data": "Sentinel-2 2021 composites and clear-water images of 19 coastal sites on six continents, labelled from ESA WorldCover, the GWL_FCS30 wetland map, Murray et al. tidal flats and the Allen Coral Atlas",
+    "uses_context": true
+  },
+  "kind": "single",
+  "bounds": [
+    [
+      37.644681502948046,
+      118.94474522632534
+    ],
+    [
+      37.8553673368739,
+      119.25610638140083
+    ]
+  ],
+  "report": {
+    "areas_ha": {
+      "water": 12448.470000000001,
+      "mangrove": 0.0,
+      "saltmarsh": 3256.27,
+      "seagrass": 0.0,
+      "tidal_flat": 13582.65,
+      "other_land": 22904.010000000002,
+      "freshwater": 9204.86
+    },
+    "error_adjusted_areas_ha": {
+      "water": {
+        "mapped_ha": 12448.47,
+        "adjusted_ha": 15228.26,
+        "ci95_ha": 11.83
+      },
+      "mangrove": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 0.0,
+        "ci95_ha": 0.0
+      },
+      "saltmarsh": {
+        "mapped_ha": 3256.27,
+        "adjusted_ha": 3552.93,
+        "ci95_ha": 4.41
+      },
+      "seagrass": {
+        "mapped_ha": 0.0,
+        "adjusted_ha": 602.54,
+        "ci95_ha": 5.19
+      },
+      "tidal_flat": {
+        "mapped_ha": 13582.65,
+        "adjusted_ha": 10822.66,
+        "ci95_ha": 12.12
+      },
+      "other_land": {
+        "mapped_ha": 22904.01,
+        "adjusted_ha": 24315.83,
+        "ci95_ha": 8.72
+      },
+      "freshwater": {
+        "mapped_ha": 9204.86,
+        "adjusted_ha": 6874.03,
+        "ci95_ha": 9.0
+      }
+    },
+    "carbon_area_basis": "error_adjusted",
+    "carbon": {
+      "classes": {
+        "saltmarsh": {
+          "area_ha": 3552.93,
+          "stock_tC": {
+            "mean": 974810.5863912659,
+            "p05": 926884.871096999,
+            "p95": 1042290.5324582638
+          },
+          "stock_tCO2e": {
+            "mean": 3574630.4202967715,
+            "p05": 3398886.822312695,
+            "p95": 3822079.3825244536
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 11784.910677084135,
+            "p05": 10001.376958214843,
+            "p95": 13499.654781336414
+          }
+        },
+        "seagrass": {
+          "area_ha": 602.54,
+          "stock_tC": {
+            "mean": 67127.26905798081,
+            "p05": 56142.08527375655,
+            "p95": 78941.00355008789
+          },
+          "stock_tCO2e": {
+            "mean": 246155.69563561564,
+            "p05": 205873.02669886526,
+            "p95": 289476.6600181723
+          },
+          "sequestration_tCO2e_per_yr": {
+            "mean": 982.4640433769711,
+            "p05": 617.7186917529359,
+            "p95": 1374.5480581734223
+          }
+        }
+      },
+      "blue_carbon_area_ha": 4155.469999999999,
+      "total_stock_tCO2e": {
+        "mean": 3820786.115932387,
+        "p05": 3637007.030467715,
+        "p95": 4072259.6011598655
+      },
+      "total_sequestration_tCO2e_per_yr": {
+        "mean": 12767.374720461106,
+        "p05": 10953.300226377529,
+        "p95": 14515.83959294011
+      },
+      "indicative_annual_value_usd": {
+        "low": 191510.6208069166,
+        "mid": 319184.36801152764,
+        "high": 510694.98881844425
+      },
+      "method": "IPCC 2013 Wetlands Supplement Tier 1; triangular Monte Carlo, n=5000"
+    }
+  },
+  "region": "Shandong, China",
+  "period": "Full year 2021",
+  "held_out": false
+}
