@@ -277,7 +277,7 @@ T_SCORE = ("How closely the model's map overlapped with trusted reference maps, 
            "1.00 = perfect match, 0 = no match.")
 T_S2 = "Sentinel-2 is a pair of European Space Agency satellites that photograph every coastline on Earth every 5 days, free."
 T_PILOT = ("Trained only on hand-labelled data from one bay (Mission Bay, 2018). It is well tested here, but other "
-           "coastlines look different. The full model trains on 19 coastal sites on six continents.")
+           "coastlines look different. The full model trains on 21 coastal sites on six continents.")
 
 def png_uri(path: Path) -> str:
     return "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()
@@ -549,7 +549,7 @@ def summary_html(meta: dict, report: dict) -> str:
         pts.append(("How much to trust it", conf + "."))
     if model.get("pilot"):
         pts.append(("What's next", "This map comes from the pilot model, trained on hand-labelled data from this bay. "
-                                  "The full BlueCarbon-AI model trains on 19 coastal sites on six continents so it "
+                                  "The full BlueCarbon-AI model trains on 21 coastal sites on six continents so it "
                                   "works on coastlines it has never seen, including mangrove forests."))
     if a.get("freshwater", 0) >= 0.05:
         pts.insert(2 if len(pts) >= 2 else len(pts), ("Freshwater wetland",
@@ -1041,7 +1041,7 @@ products are least reliable. Local survey polygons (for example eelgrass surveys
 <tr><td>Salt marsh</td><td>ESA WorldCover + GWL_FCS30 wetland map (Zhang et al., 2023)</td><td>Herbaceous, grass or shrub cover that GWL_FCS30 classes as salt marsh. Tidal-zone vegetation it calls non-wetland is left unlabelled</td></tr>
 <tr><td>Freshwater wetland</td><td>ESA WorldCover + GWL_FCS30 + Murray et al. tidal wetlands</td><td>Herbaceous wetland outside the tidal zone, or classed as swamp or marsh. Mapped, but not counted as blue carbon</td></tr>
 <tr><td>Tidal flat</td><td>Murray et al., global intertidal</td><td>Tidal flat classification</td></tr>
-<tr><td>Seagrass</td><td>Allen Coral Atlas benthic map</td><td>Seagrass class (tropical coverage). At sites with seagrass no map covers, such as Florida Bay and Tampa Bay, water outside the Atlas footprint is left unlabelled rather than taught as open water</td></tr>
+<tr><td>Seagrass</td><td>Allen Coral Atlas benthic map + FWC Florida statewide seagrass + Moreton Bay 2015 (Seamap Australia)</td><td>Atlas seagrass class (tropics) plus survey polygons from 2010 on, burned in over water only. Where seagrass exists but no map covers it (e.g. Shark Bay), water outside the Atlas footprint is left unlabelled rather than taught as open water</td></tr>
 </tbody></table>
 
 <h3>Model and evaluation</h3>
@@ -1073,8 +1073,9 @@ on its own.</p>
 <ul>
 <li>Tier 1 factors are global averages. They are suited to screening and prioritization, not to issuing credits,
 which requires field-measured stocks.</li>
-<li>Seagrass is detected in clear tropical water but not yet in murky water (Moreton Bay), and global seagrass
-labels cover only tropical reefs. Temperate meadows need local survey data.</li>
+<li>Seagrass is learned from the Allen Coral Atlas and official surveys (Florida, Moreton Bay). The current model
+over-maps seagrass in some turbid bays and does not yet detect it in Moreton Bay; the next training run adds
+open-water examples next to surveyed meadows to correct this.</li>
 <li>Tides change what is exposed in intertidal zones, and a median composite averages across tidal states.</li>
 <li>Reference products carry their own errors, which the model partly learns. The confidence intervals treat pixels
 as independent samples, so they understate the true uncertainty.</li>
